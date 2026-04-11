@@ -1,4 +1,523 @@
-IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwoiIiIKaW5jaWRlbnQtdHJpYWdlIOKAlCBkZXRlcm1pbmlzdGljIGluY2lkZW50IHRyaWFnZSBDTEkgdG9vbC4KCkFjY2VwdHMgYSBzZW50aW5lbCBKU09OIHNuYXBzaG90IGFuZCBhbiBhbGVydCBkZXNjcmlwdG9yIChKU09OIGZpbGUgb3IgZnJlZSB0ZXh0KSwKY29ycmVsYXRlcyB0aGUgYWxlcnQgc3ltcHRvbSB0byBzZW50aW5lbCBmaW5kaW5ncywgYnVpbGRzIGEgY2F1c2F0aW9uIGNoYWluLCBhbmQKZW1pdHMgYSB0cmlhZ2UgSlNPTiByZXBvcnQgdG8gc3Rkb3V0LgoKTm8gTExNIGNhbGxzLiBObyBleHRlcm5hbCBkZXBlbmRlbmNpZXMuIHN0ZGxpYiBvbmx5LgoKRXhpdCBjb2RlczoKICAwIOKAlCB0cmlhZ2UgY29tcGxldGUsIHZhbGlkIG91dHB1dAogIDEg4oCUIG5hbWVzcGFjZSB1bmtub3duOyBDbGF1ZGUgbXVzdCBhc2sgdGhlIHVzZXIKICAyIOKAlCBzZW50aW5lbCBzbmFwc2hvdCBtaXNzaW5nIG9yIGludmFsaWQ7IENsYXVkZSBtdXN0IGNvbGxlY3QgY2x1c3RlciBzdGF0ZQogIDMg4oCUIG5vIHNlbnRpbmVsIGZpbmRpbmdzIG1hdGNoIHRoZSBhbGVydDsgbG93LWNvbmZpZGVuY2Ugb3V0cHV0IHByb2R1Y2VkCgpVc2FnZToKICBpbmNpZGVudC10cmlhZ2UgWy0tc2VudGluZWwtanNvbiA8ZmlsZT5dIFstLWFsZXJ0IDx0ZXh0IG9yIGpzb24gZmlsZT5dCiAgICAgICAgICAgICAgICAgIFstLW5hbWVzcGFjZSA8bnM+XSBbLS1vdXRwdXQtZm9ybWF0IGpzb258dGV4dHxodG1sXQoiIiIKCmltcG9ydCBhcmdwYXJzZQppbXBvcnQganNvbgppbXBvcnQgb3MKaW1wb3J0IHJlCmltcG9ydCBzeXMKZnJvbSBkYXRldGltZSBpbXBvcnQgZGF0ZXRpbWUsIHRpbWV6b25lCgpTQ0hFTUFfVkVSU0lPTiA9ICIxLjAiCgojIOKUgOKUgCBBbGVydCB0eXBlIGNsYXNzaWZpY2F0aW9uIOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgAoKQUxFUlRfVFlQRV9LRVlXT1JEUyA9IHsKICAgICMgU0xPIGJ1cm4g4oCUIHByb2JlLWJhc2VkIChwcm9iZSBlbmRwb2ludCBlbWl0cyB3b3JrZmxvd1N0YXR1cyBtZXRyaWNzKQogICAgInNsb19idXJuX3Byb2JlIjogWwogICAgICAgICJwcm9iZSIsICJjb3JyZWN0bmVzcyIsICJ3b3JrZmxvd3N0YXR1cyIsICJwdWxzZSIsICJtZWFzdXJlZCBhdCBwcm9iZSIsCiAgICAgICAgImZhc3QtYnVybiBhbGVydCBmb3IgcHJvYmUiLCAicHJvYmUgbG9naW4iLAogICAgXSwKICAgICMgU0xPIGJ1cm4g4oCUIHNlcnZpY2UtbGV2ZWwgKEhUVFAgZXJyb3IgYnVkZ2V0KQogICAgInNsb19idXJuX3NlcnZpY2UiOiBbCiAgICAgICAgImJ1cm4gcmF0ZSIsICJhdmFpbGFiaWxpdHkiLCAibWVhc3VyZWQgYXQgc2VydmljZSIsICJlcnJvciBidWRnZXQiLAogICAgICAgICJzbG8gYnVybiIsICJmYXN0LWJ1cm4gYWxlcnQgZm9yIiwKICAgIF0sCiAgICAjIEt1YmVybmV0ZXMgYXBwIGhlYWx0aCBhbGVydHMgKGt1YmUtcHJvbWV0aGV1cy1zdGFjaykKICAgICJrdWJlX2FwcF9oZWFsdGgiOiBbCiAgICAgICAgImt1YmVwb2QiLCAia3ViZWRlcGxveW1lbnQiLCAia3ViZXN0YXRlZnVsc2V0IiwgImt1YmVjb250YWluZXIiLCAia3ViZWhwYSIsCiAgICAgICAgImNyYXNobG9vcGluZyIsICJub3RyZWFkeSIsICJyZXBsaWNhc21pc21hdGNoIiwgIm1heGVkb3V0IiwKICAgICAgICAiY3Jhc2hsb29wYmFja29mZiIsICJjcmFzaCBsb29wIiwKICAgIF0sCiAgICAjIEt1YmVybmV0ZXMgcmVzb3VyY2UgcHJlc3N1cmUKICAgICJrdWJlX3Jlc291cmNlIjogWwogICAgICAgICJrdWJlbWVtb3J5IiwgImt1YmVjcHUiLCAia3ViZW5vZGUiLCAib29ta2lsbGVkIiwgIm92ZXJjb21taXQiLAogICAgICAgICJtZW1vcnkgcHJlc3N1cmUiLCAiY3B1IHByZXNzdXJlIiwKICAgIF0sCiAgICAjIEt1YmVybmV0ZXMgc3RvcmFnZQogICAgImt1YmVfc3RvcmFnZSI6IFsKICAgICAgICAia3ViZXBlcnNpc3RlbnR2b2x1bWUiLCAiZmlsbGluZ3VwIiwgInB2YyIsICJwZXJzaXN0ZW50IHZvbHVtZSIsCiAgICBdLAogICAgIyBBcmdvQ0QgaGVhbHRoCiAgICAiYXJnb2NkX2hlYWx0aCI6IFsKICAgICAgICAiYXJnb2FwcCIsICJhcmdvYXBwbm90aGVhbHRoeSIsICJvdXRvZnN5bmMiLCAiYXJnb2NkIiwKICAgIF0sCiAgICAjIE1pc3NpbmcgbWV0cmljIC8gYWJzZW50IG1ldHJpYwogICAgIm1pc3NpbmdfbWV0cmljIjogWwogICAgICAgICJtaXNzaW5nIiwgImFic2VudCIsICJub3Qgc2VlbiIsICJubyBkYXRhIiwgIm5vIG1ldHJpYyIsCiAgICBdLAogICAgImhpZ2hfZXJyb3JfcmF0ZSI6IFsKICAgICAgICAiZXJyb3IgcmF0ZSIsICI1eHgiLCAiaHR0cCA1IiwgInNsbyBicmVhY2giLCAic2xvIHZpb2xhdGlvbiIsCiAgICAgICAgIjUwMCIsICI1MDMiLCAiNTAyIiwgIjUwNCIsCiAgICBdLAogICAgInNlcnZpY2VfdW5hdmFpbGFibGUiOiBbCiAgICAgICAgInVuYXZhaWxhYmxlIiwgImRvd24iLCAidW5yZWFjaGFibGUiLCAibm90IHJlc3BvbmRpbmciLCAiY29ubmVjdGlvbiByZWZ1c2VkIiwKICAgICAgICAibm8gZW5kcG9pbnRzIiwgIjAgcmVwbGljYXMiLAogICAgXSwKICAgICJsYXRlbmN5X3NwaWtlIjogWwogICAgICAgICJsYXRlbmN5IiwgInNsb3ciLCAidGltZW91dCIsICJwOTkiLCAicDk1IiwgInJlc3BvbnNlIHRpbWUiLCAiZHVyYXRpb24iLAogICAgXSwKICAgICJvb20iOiBbCiAgICAgICAgIm9vbSIsICJvdXQgb2YgbWVtb3J5IiwKICAgIF0sCiAgICAiY3Jhc2hfbG9vcCI6IFsKICAgICAgICAicmVzdGFydCBjb3VudCIsICJyZXN0YXJ0cyIsICJhYm92ZSB0aGUgdGhyZXNob2xkIiwgImV4aXQgY29kZSIsICJyZXN0YXJ0aW5nIiwKICAgIF0sCn0KClNFQ1RJT05fUFJJT1JJVFkgPSB7CiAgICAic2xvX2J1cm5fcHJvYmUiOiAgICAgIFsiUE9EUyIsICJXT1JLTE9BRFMiLCAiSFBBUyIsICJIVFRQIiwgIkVWRU5UUyJdLAogICAgInNsb19idXJuX3NlcnZpY2UiOiAgICBbIkhUVFAiLCAiUE9EUyIsICJXT1JLTE9BRFMiLCAiSFBBUyIsICJFVkVOVFMiXSwKICAgICJrdWJlX2FwcF9oZWFsdGgiOiAgICAgWyJQT0RTIiwgIldPUktMT0FEUyIsICJFVkVOVFMiLCAiSFBBUyJdLAogICAgImt1YmVfcmVzb3VyY2UiOiAgICAgICBbIk5PREVTIiwgIlJFU09VUkNFUyIsICJQT0RTIiwgIkVWRU5UUyJdLAogICAgImt1YmVfc3RvcmFnZSI6ICAgICAgICBbIlBWQ1MiLCAiUE9EUyIsICJFVkVOVFMiXSwKICAgICJhcmdvY2RfaGVhbHRoIjogICAgICAgWyJXT1JLTE9BRFMiLCAiUE9EUyIsICJFVkVOVFMiXSwKICAgICJtaXNzaW5nX21ldHJpYyI6ICAgICAgWyJQT0RTIiwgIldPUktMT0FEUyIsICJQUk9CRVMiXSwKICAgICJoaWdoX2Vycm9yX3JhdGUiOiAgICAgWyJQT0RTIiwgIlBST0JFUyIsICJXT1JLTE9BRFMiLCAiSFRUUCIsICJFVkVOVFMiXSwKICAgICJzZXJ2aWNlX3VuYXZhaWxhYmxlIjogWyJQT0RTIiwgIkhUVFAiLCAiV09SS0xPQURTIiwgIlBST0JFUyIsICJFVkVOVFMiXSwKICAgICJsYXRlbmN5X3NwaWtlIjogICAgICAgWyJSRVNPVVJDRVMiLCAiSFBBUyIsICJQT0RTIiwgIk5PREVTIl0sCiAgICAib29tIjogICAgICAgICAgICAgICAgIFsiUE9EUyIsICJOT0RFUyIsICJSRVNPVVJDRVMiLCAiRVZFTlRTIl0sCiAgICAiY3Jhc2hfbG9vcCI6ICAgICAgICAgIFsiUE9EUyIsICJFVkVOVFMiLCAiV09SS0xPQURTIiwgIlJFU09VUkNFUyIsICJOT0RFUyJdLAogICAgInVua25vd24iOiAgICAgICAgICAgICBbIk5PREVTIiwgIlBPRFMiLCAiUFJPQkVTIiwgIldPUktMT0FEUyIsICJIVFRQIiwgImdSUEMiLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgIkVWRU5UUyIsICJSRVNPVVJDRVMiLCAiUFZDUyIsICJIUEFTIl0sCn0KCiMgRmluZGluZ3MgdGhhdCBhcmUgYWx3YXlzIG5vaXNlIOKAlCBuZXZlciBpbmNsdWRlIGluIGEgY2F1c2F0aW9uIGNoYWluIHJlZ2FyZGxlc3Mgb2YgYWxlcnQgdHlwZS4KIyBDaGVja2VkIGFzIHN1YnN0cmluZyBtYXRjaGVzIGFnYWluc3QgZmluZGluZyBtZXNzYWdlcyAoY2FzZS1pbnNlbnNpdGl2ZSkuCktOT1dOX05PSVNZX0ZJTkRJTkdTID0gWwogICAgInBlZXAtdjEiLCAgICAgICAgICAgICAgICAgICAgICAgICAgICAjIEdDRSBWTSBwb2ludGVyIOKAlCBubyBLOHMgcG9kcyBleHBlY3RlZAogICAgImt1YmUtc3lzdGVtL2FwcC1rdWJlLWNvbnRyb2xsZXItbWFuYWdlciIsICAjIEdLRSBtYW5hZ2VkIGNvbnRyb2wgcGxhbmUKICAgICJrdWJlLXN5c3RlbS9hcHAta3ViZS1zY2hlZHVsZXIiLCAgICMgR0tFIG1hbmFnZWQgY29udHJvbCBwbGFuZQpdCgoKIyDilIDilIAgQWxlcnQgcGFyc2luZyDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIAKCmRlZiBjbGFzc2lmeV9hbGVydF90eXBlKHRleHQ6IHN0cikgLT4gc3RyOgogICAgdGV4dF9sb3dlciA9IHRleHQubG93ZXIoKQogICAgIyBJdGVyYXRlIGluIGRlZmluaXRpb24gb3JkZXIg4oCUIG1vcmUtc3BlY2lmaWMgdHlwZXMgYXJlIGRlZmluZWQgZmlyc3QKICAgIGZvciBhbGVydF90eXBlLCBrZXl3b3JkcyBpbiBBTEVSVF9UWVBFX0tFWVdPUkRTLml0ZW1zKCk6CiAgICAgICAgaWYgYW55KGt3IGluIHRleHRfbG93ZXIgZm9yIGt3IGluIGtleXdvcmRzKToKICAgICAgICAgICAgcmV0dXJuIGFsZXJ0X3R5cGUKICAgIHJldHVybiAidW5rbm93biIKCgpkZWYgZXh0cmFjdF9zdGFydF90aW1lKHRleHQ6IHN0cikgLT4gc3RyIHwgTm9uZToKICAgICMgSVNPODYwMQogICAgbSA9IHJlLnNlYXJjaChyJ1xkezR9LVxkezJ9LVxkezJ9VFxkezJ9OlxkezJ9OlxkezJ9JywgdGV4dCkKICAgIGlmIG06CiAgICAgICAgcmV0dXJuIG0uZ3JvdXAoMCkgKyAiWiIKICAgICMgSEg6TU0gd2l0aCAic2luY2UiIG9yICJhdCIKICAgIG0gPSByZS5zZWFyY2gocicoPzpzaW5jZXxhdClccyhcZHsxLDJ9OlxkezJ9KScsIHRleHQsIHJlLklHTk9SRUNBU0UpCiAgICBpZiBtOgogICAgICAgIHJldHVybiBtLmdyb3VwKDEpCiAgICByZXR1cm4gTm9uZQoKCmRlZiBleHRyYWN0X25hbWVzcGFjZSh0ZXh0OiBzdHIpIC0+IHN0ciB8IE5vbmU6CiAgICAjIEdDUCBDbG91ZCBNb25pdG9yaW5nIGZvcm1hdDogbmFtZXNwYWNlX25hbWU9bXktbmFtZXNwYWNlIChpbnNpZGUge2tleT12YWx1ZX0gbGFiZWxzKQogICAgbSA9IHJlLnNlYXJjaChyJ1xibmFtZXNwYWNlX25hbWVbPVxzXSsoW2EtejAtOV1bYS16MC05XC1dKyknLCB0ZXh0LCByZS5JR05PUkVDQVNFKQogICAgaWYgbToKICAgICAgICByZXR1cm4gbS5ncm91cCgxKQogICAgIyBFeHBsaWNpdCBuYW1lc3BhY2U9IG9yIG5hbWVzcGFjZTogZm9ybXMgKGJ1dCBub3QgbmFtZXNwYWNlX25hbWUg4oCUIGFscmVhZHkgaGFuZGxlZCBhYm92ZSkKICAgIG0gPSByZS5zZWFyY2gocicoPzwhXHcpbmFtZXNwYWNlWz06XHNdKyhbYS16MC05XVthLXowLTlcLV0rKScsIHRleHQsIHJlLklHTk9SRUNBU0UpCiAgICBpZiBtOgogICAgICAgIHJldHVybiBtLmdyb3VwKDEpCiAgICAjIDx3b3JkPi1ucyBvciA8d29yZD4tbmFtZXNwYWNlIHBhdHRlcm5zCiAgICBtID0gcmUuc2VhcmNoKHInXGIoW2EtejAtOV1bYS16MC05XC1dKy0oPzpuc3xuYW1lc3BhY2UpKVxiJywgdGV4dCwgcmUuSUdOT1JFQ0FTRSkKICAgIGlmIG06CiAgICAgICAgcmV0dXJuIG0uZ3JvdXAoMSkKICAgIHJldHVybiBOb25lCgoKZGVmIGV4dHJhY3Rfc2VydmljZSh0ZXh0OiBzdHIpIC0+IHN0ciB8IE5vbmU6CiAgICAjIEdDUCBDbG91ZCBNb25pdG9yaW5nIGZvcm1hdDogY29udGFpbmVyX25hbWU9bXktc2VydmljZQogICAgbSA9IHJlLnNlYXJjaChyJ1xiY29udGFpbmVyX25hbWVbPVxzXSsoW2EtejAtOV1bYS16MC05XC1dKyknLCB0ZXh0LCByZS5JR05PUkVDQVNFKQogICAgaWYgbToKICAgICAgICByZXR1cm4gbS5ncm91cCgxKQogICAgIyBHQ1AgZm9ybWF0OiBzZXJ2aWNlX25hbWU9bXktc2VydmljZSAoc3lzdGVtIGxhYmVscyBibG9jaykKICAgIG0gPSByZS5zZWFyY2gocidcYnNlcnZpY2VfbmFtZVs9XHNdKyhbYS16MC05XVthLXowLTlcLV0rKScsIHRleHQsIHJlLklHTk9SRUNBU0UpCiAgICBpZiBtOgogICAgICAgIHJldHVybiBtLmdyb3VwKDEpCiAgICAjIFdvcmQgYmVmb3JlIFNMTywgZXJyb3IgcmF0ZSwgbGF0ZW5jeSwgdW5hdmFpbGFibGUsIGRvd24KICAgIG0gPSByZS5zZWFyY2goCiAgICAgICAgcicoW2EtejAtOV1bYS16MC05XC1fL1wuXSspXHMrKD86U0xPfGVycm9yIHJhdGV8bGF0ZW5jeXx1bmF2YWlsYWJsZXxkb3dufGJyZWFjaCknLAogICAgICAgIHRleHQsIHJlLklHTk9SRUNBU0UKICAgICkKICAgIGlmIG06CiAgICAgICAgcmV0dXJuIG0uZ3JvdXAoMSkucnN0cmlwKCIvLi0iKQogICAgcmV0dXJuIE5vbmUKCgpkZWYgcGFyc2VfYWxlcnRfZnJlZXRleHQodGV4dDogc3RyKSAtPiBkaWN0OgogICAgcmV0dXJuIHsKICAgICAgICAiYWxlcnRfc291cmNlIjogImZyZWV0ZXh0IiwKICAgICAgICAiYWxlcnRfbmFtZSI6IHRleHRbOjEyMF0sCiAgICAgICAgInNlcnZpY2UiOiBleHRyYWN0X3NlcnZpY2UodGV4dCksCiAgICAgICAgIm5hbWVzcGFjZSI6IGV4dHJhY3RfbmFtZXNwYWNlKHRleHQpLAogICAgICAgICJzdGFydF90aW1lIjogZXh0cmFjdF9zdGFydF90aW1lKHRleHQpLAogICAgICAgICJzZXZlcml0eSI6ICJjcml0aWNhbCIgaWYgYW55KHcgaW4gdGV4dC5sb3dlcigpIGZvciB3IGluIFsiY3JpdGljYWwiLCAicDEiLCAic2V2MSIsICJzbG8gYnJlYWNoIl0pIGVsc2UgIndhcm5pbmciLAogICAgICAgICJsYWJlbHMiOiB7fSwKICAgICAgICAicmF3X2JvZHkiOiB0ZXh0LAogICAgfQoKCmRlZiBwYXJzZV9hbGVydChhbGVydF9hcmc6IHN0cikgLT4gZGljdDoKICAgICIiIlBhcnNlIC0tYWxlcnQgYXJndW1lbnQ6IEpTT04gZmlsZSBwYXRoLCBvciBmcmVlIHRleHQuIiIiCiAgICAjIFRyeSBhcyBmaWxlIHBhdGgKICAgIGlmIG9zLnBhdGguaXNmaWxlKGFsZXJ0X2FyZyk6CiAgICAgICAgdHJ5OgogICAgICAgICAgICB3aXRoIG9wZW4oYWxlcnRfYXJnKSBhcyBmOgogICAgICAgICAgICAgICAgZGF0YSA9IGpzb24ubG9hZChmKQogICAgICAgICAgICAjIE5vcm1hbGlzZSB0byBhbGVydCBkZXNjcmlwdG9yIHNjaGVtYQogICAgICAgICAgICByZXR1cm4gewogICAgICAgICAgICAgICAgImFsZXJ0X3NvdXJjZSI6IGRhdGEuZ2V0KCJhbGVydF9zb3VyY2UiLCAidW5rbm93biIpLAogICAgICAgICAgICAgICAgImFsZXJ0X25hbWUiOiBkYXRhLmdldCgiYWxlcnRfbmFtZSIsICIiKSwKICAgICAgICAgICAgICAgICJzZXJ2aWNlIjogZGF0YS5nZXQoInNlcnZpY2UiKSwKICAgICAgICAgICAgICAgICJuYW1lc3BhY2UiOiBkYXRhLmdldCgibmFtZXNwYWNlIiksCiAgICAgICAgICAgICAgICAiZW1pdHRpbmdfc2VydmljZSI6IGRhdGEuZ2V0KCJlbWl0dGluZ19zZXJ2aWNlIiksCiAgICAgICAgICAgICAgICAiZGVwZW5kZW5jaWVzIjogZGF0YS5nZXQoImRlcGVuZGVuY2llcyIsIFtdKSwKICAgICAgICAgICAgICAgICJwbGF5Ym9va191cmwiOiBkYXRhLmdldCgicGxheWJvb2tfdXJsIiksCiAgICAgICAgICAgICAgICAic3RhcnRfdGltZSI6IGRhdGEuZ2V0KCJzdGFydF90aW1lIiksCiAgICAgICAgICAgICAgICAic2V2ZXJpdHkiOiBkYXRhLmdldCgic2V2ZXJpdHkiLCAid2FybmluZyIpLAogICAgICAgICAgICAgICAgImxhYmVscyI6IGRhdGEuZ2V0KCJsYWJlbHMiLCB7fSksCiAgICAgICAgICAgICAgICAicmF3X2JvZHkiOiBkYXRhLmdldCgicmF3X2JvZHkiLCAiIiksCiAgICAgICAgICAgIH0KICAgICAgICBleGNlcHQgKGpzb24uSlNPTkRlY29kZUVycm9yLCBPU0Vycm9yKToKICAgICAgICAgICAgcGFzcyAgIyBGYWxsIHRocm91Z2ggdG8gZnJlZS10ZXh0IHBhcnNlCiAgICByZXR1cm4gcGFyc2VfYWxlcnRfZnJlZXRleHQoYWxlcnRfYXJnKQoKCmRlZiBsb2FkX3NlbnRpbmVsKHBhdGg6IHN0cikgLT4gZGljdCB8IE5vbmU6CiAgICB0cnk6CiAgICAgICAgd2l0aCBvcGVuKHBhdGgpIGFzIGY6CiAgICAgICAgICAgIGRhdGEgPSBqc29uLmxvYWQoZikKICAgICAgICBpZiBkYXRhLmdldCgic2NoZW1hX3ZlcnNpb24iKSAhPSAiMS4wIjoKICAgICAgICAgICAgcHJpbnQoZiJXQVJOSU5HOiBzZW50aW5lbCBKU09OIHNjaGVtYSB2ZXJzaW9uICd7ZGF0YS5nZXQoJ3NjaGVtYV92ZXJzaW9uJyl9JyBtYXkgZGlmZmVyIGZyb20gZXhwZWN0ZWQgMS4wIiwgZmlsZT1zeXMuc3RkZXJyKQogICAgICAgIHJldHVybiBkYXRhCiAgICBleGNlcHQgKGpzb24uSlNPTkRlY29kZUVycm9yLCBPU0Vycm9yKSBhcyBlOgogICAgICAgIHByaW50KGYiRVJST1I6IGNhbm5vdCByZWFkIHNlbnRpbmVsIEpTT04gZnJvbSAne3BhdGh9Jzoge2V9IiwgZmlsZT1zeXMuc3RkZXJyKQogICAgICAgIHJldHVybiBOb25lCgoKIyDilIDilIAgQ29ycmVsYXRpb24gZW5naW5lIOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgAoKZGVmIF9pc19ub2lzeShtZXNzYWdlOiBzdHIpIC0+IGJvb2w6CiAgICAiIiJSZXR1cm4gVHJ1ZSBpZiB0aGlzIGZpbmRpbmcgbWF0Y2hlcyB0aGUga25vd24tbm9pc3kgc3VwcHJlc3Npb24gbGlzdC4iIiIKICAgIG1zZ19sb3dlciA9IG1lc3NhZ2UubG93ZXIoKQogICAgcmV0dXJuIGFueShub2lzZS5sb3dlcigpIGluIG1zZ19sb3dlciBmb3Igbm9pc2UgaW4gS05PV05fTk9JU1lfRklORElOR1MpCgoKZGVmIF9pbl9jYXVzYWxfc2NvcGUobXNnX2xvd2VyOiBzdHIsIGVtaXR0aW5nX3NlcnZpY2U6IHN0ciwgZGVwZW5kZW5jaWVzOiBsaXN0W3N0cl0sCiAgICAgICAgICAgICAgICAgICAgIG5hbWVzcGFjZTogc3RyKSAtPiBib29sOgogICAgIiIiCiAgICBSZXR1cm4gVHJ1ZSBpZiBhIGZpbmRpbmcgbWVzc2FnZSBpcyB3aXRoaW4gdGhlIGNhdXNhbCBzY29wZSBkZWZpbmVkIGJ5IHRoZQogICAgYWxlcnQtc2VydmljZS1tYXAgKGVtaXR0aW5nX3NlcnZpY2UgKyBkZXBlbmRlbmNpZXMgKyBuYW1lc3BhY2UpLgogICAgV2hlbiBubyBlbWl0dGluZ19zZXJ2aWNlIGlzIGtub3duLCBhbGwgZmluZGluZ3MgYXJlIGluIHNjb3BlLgogICAgIiIiCiAgICBpZiBub3QgZW1pdHRpbmdfc2VydmljZToKICAgICAgICByZXR1cm4gVHJ1ZQogICAgdGFyZ2V0cyA9IFtlbWl0dGluZ19zZXJ2aWNlLmxvd2VyKCldICsgW2QubG93ZXIoKSBmb3IgZCBpbiAoZGVwZW5kZW5jaWVzIG9yIFtdKV0KICAgIGlmIG5hbWVzcGFjZToKICAgICAgICB0YXJnZXRzLmFwcGVuZChuYW1lc3BhY2UubG93ZXIoKSkKICAgIHJldHVybiBhbnkodCBpbiBtc2dfbG93ZXIgZm9yIHQgaW4gdGFyZ2V0cykKCgpkZWYgc2NvcmVfZmluZGluZ3Moc2VudGluZWw6IGRpY3QsIGFsZXJ0OiBkaWN0LCBhbGVydF90eXBlOiBzdHIpIC0+IGxpc3RbZGljdF06CiAgICAiIiIKICAgIFNjb3JlIGVhY2ggc2VudGluZWwgZmluZGluZyBhcyBkaXJlY3QgLyBjb250cmlidXRpbmcgLyBiYWNrZ3JvdW5kLgoKICAgIFN0ZXAgMCAoYWxlcnQtc2VydmljZS1tYXAgc2NvcGluZyk6IGlmIGVtaXR0aW5nX3NlcnZpY2UgaXMgc2V0LCBvbmx5IGZpbmRpbmdzCiAgICB0aGF0IHJlZmVyZW5jZSB0aGUgZW1pdHRpbmcgc2VydmljZSwgaXRzIGRlcGVuZGVuY2llcywgb3IgdGhlIGFsZXJ0IG5hbWVzcGFjZQogICAgYXJlIGVsaWdpYmxlIGZvciBkaXJlY3QvY29udHJpYnV0aW5nIGNsYXNzaWZpY2F0aW9uLiBBbGwgb3RoZXJzIGFyZSBiYWNrZ3JvdW5kLgoKICAgIEtub3duLW5vaXN5IGZpbmRpbmdzIGFyZSBzdXBwcmVzc2VkIGVudGlyZWx5IChub3QgaW5jbHVkZWQgaW4gb3V0cHV0KS4KCiAgICBQcmltYXJ5IFAxIHNvdXJjZTogdGhlICdyZWNvbW1lbmRhdGlvbicgZmllbGQgb24gbWF0Y2hlZCBmaW5kaW5ncyDigJQKICAgIGl0IGlzIGFscmVhZHkgYSBjb21wbGV0ZSwgZXhlY3V0YWJsZSBrdWJlY3RsIGNvbW1hbmQuIFdlIG9ubHkgZmFsbCBiYWNrCiAgICB0byB0ZW1wbGF0ZS1maWxsaW5nIHdoZW4gcmVjb21tZW5kYXRpb24gaXMgbnVsbC4KICAgICIiIgogICAgcHJpb3JpdHlfc2VjdGlvbnMgPSBTRUNUSU9OX1BSSU9SSVRZZ2V0KGFsZXJ0X3R5cGUsIFNFQ1RJT05fUFJJT1JJVFlbInVua25vd24iXSkKICAgIHNlcnZpY2UgPSAoYWxlcnQuZ2V0KCJzZXJ2aWNlIikgb3IgIiIpLmxvd2VyKCkKICAgIG5hbWVzcGFjZSA9IChhbGVydC5nZXQoIm5hbWVzcGFjZSIpIG9yICIiKS5sb3dlcigpCiAgICBlbWl0dGluZ19zZXJ2aWNlID0gKGFsZXJ0LmdldCgiZW1pdHRpbmdfc2VydmljZSIpIG9yICIiKS5sb3dlcigpCiAgICBkZXBlbmRlbmNpZXMgPSBhbGVydC5nZXQoImRlcGVuZGVuY2llcyIpIG9yIFtdCgogICAgbWF0Y2hlZCA9IFtdCiAgICBmb3Igc2VjdGlvbl9vYmogaW4gc2VudGluZWwuZ2V0KCJzZWN0aW9ucyIsIFtdKToKICAgICAgICBzZWN0aW9uID0gc2VjdGlvbl9vYmpbInNlY3Rpb24iXQogICAgICAgIGluX3ByaW9yaXR5ID0gc2VjdGlvbiBpbiBwcmlvcml0eV9zZWN0aW9ucwogICAgICAgIHByaW9yaXR5X3JhbmsgPSBwcmlvcml0eV9zZWN0aW9ucy5pbmRleChzZWN0aW9uKSBpZiBpbl9wcmlvcml0eSBlbHNlIDk5OQoKICAgICAgICBmb3IgZmluZGluZyBpbiBzZWN0aW9uX29iai5nZXQoImZpbmRpbmdzIiwgW10pOgogICAgICAgICAgICBzZXYgPSBmaW5kaW5nLmdldCgic2V2ZXJpdHkiLCAiT0siKQogICAgICAgICAgICBpZiBzZXYgPT0gIk9LIjoKICAgICAgICAgICAgICAgIGNvbnRpbnVlCgogICAgICAgICAgICBtc2cgPSBmaW5kaW5nLmdldCgibWVzc2FnZSIpIG9yICIiCiAgICAgICAgICAgIG1zZ19sb3dlciA9IG1zZy5sb3dlcigpCiAgICAgICAgICAgIHJlYyA9IGZpbmRpbmcuZ2V0KCJyZWNvbW1lbmRhdGlvbiIpCgogICAgICAgICAgICAjIFN1cHByZXNzIGtub3duLW5vaXN5IGZpbmRpbmdzIHVuY29uZGl0aW9uYWxseQogICAgICAgICAgICBpZiBfaXNfbm9pc3kobXNnKToKICAgICAgICAgICAgICAgIGNvbnRpbnVlCgogICAgICAgICAgICAjIFN0ZXAgMDogc2NvcGUgZmlsdGVyIOKAlCBpZiBlbWl0dGluZ19zZXJ2aWNlIGlzIGtub3duLCByZXN0cmljdCB0byBjYXVzYWwgcGF0aAogICAgICAgICAgICBpbl9zY29wZSA9IF9pbl9jYXVzYWxfc2NvcGUobXNnX2xvd2VyLCBlbWl0dGluZ19zZXJ2aWNlLCBkZXBlbmRlbmNpZXMsIG5hbWVzcGFjZSkKCiAgICAgICAgICAgICMgRGlyZWN0OiBDUklUSUNBTCArIGluIHByaW9yaXR5IHNlY3Rpb24gKyBpbiBjYXVzYWwgc2NvcGUgKyByZWZlcmVuY2VzIHNlcnZpY2UvbnMKICAgICAgICAgICAgaXNfZGlyZWN0ID0gKAogICAgICAgICAgICAgICAgc2V2ID09ICJDUklUSUNBTCIKICAgICAgICAgICAgICAgIGFuZCBpbl9wcmlvcml0eQogICAgICAgICAgICAgICAgYW5kIGluX3Njb3BlCiAgICAgICAgICAgICAgICBhbmQgKAogICAgICAgICAgICAgICAgICAgIChzZXJ2aWNlIGFuZCBzZXJ2aWNlIGluIG1zZ19sb3dlcikKICAgICAgICAgICAgICAgICAgICBvciAobmFtZXNwYWNlIGFuZCBuYW1lc3BhY2UgaW4gbXNnX2xvd2VyKQogICAgICAgICAgICAgICAgICAgIG9yIChlbWl0dGluZ19zZXJ2aWNlIGFuZCBlbWl0dGluZ19zZXJ2aWNlIGluIG1zZ19sb3dlcikKICAgICAgICAgICAgICAgICkKICAgICAgICAgICAgKQoKICAgICAgICAgICAgIyBDb250cmlidXRpbmc6IENSSVRJQ0FMIG9yIFdBUk4gaW4gYSBwcmlvcml0eSBzZWN0aW9uIGFuZCBpbiBjYXVzYWwgc2NvcGUKICAgICAgICAgICAgaXNfY29udHJpYnV0aW5nID0gKG5vdCBpc19kaXJlY3QpIGFuZCBpbl9wcmlvcml0eSBhbmQgaW5fc2NvcGUgYW5kIHNldiBpbiAoIkNSSVRJQ0FMIiwgIldBUk4iKQoKICAgICAgICAgICAgaWYgaXNfZGlyZWN0OgogICAgICAgICAgICAgICAgcmVsZXZhbmNlID0gImRpcmVjdCIKICAgICAgICAgICAgICAgIHJlYXNvbiA9IGYiQ1JJVElDQUwgZmluZGluZyBpbiBwcmlvcml0eSBzZWN0aW9uIHtzZWN0aW9ufTsgbWVzc2FnZSByZWZlcmVuY2VzIHNlcnZpY2UvbmFtZXNwYWNlIGZyb20gYWxlcnQiCiAgICAgICAgICAgIGVsaWYgaXNfY29udHJpYnV0aW5nOgogICAgICAgICAgICAgICAgcmVsZXZhbmNlID0gImNvbnRyaWJ1dGluZyIKICAgICAgICAgICAgICAgIHJlYXNvbiA9IGYie3Nldn0gZmluZGluZyBpbiBwcmlvcml0eSBzZWN0aW9uIHtzZWN0aW9ufSAocmFuayB7cHJpb3JpdHlfcmFuayArIDF9KSIKICAgICAgICAgICAgZWxpZiBub3QgaW5fc2NvcGU6CiAgICAgICAgICAgICAgICByZWxldmFuY2UgPSAiYmFja2dyb3VuZCIKICAgICAgICAgICAgICAgIHJlYXNvbiA9IGYiT3V0c2lkZSBjYXVzYWwgc2NvcGUgKGVtaXR0aW5nX3NlcnZpY2U9e2VtaXR0aW5nX3NlcnZpY2Ugb3IgJ3Vua25vd24nfSkiCiAgICAgICAgICAgIGVsc2U6CiAgICAgICAgICAgICAgICByZWxldmFuY2UgPSAiYmFja2dyb3VuZCIKICAgICAgICAgICAgICAgIHJlYXNvbiA9IGYiU2VjdGlvbiB7c2VjdGlvbn0gbm90IGluIHByaW9yaXR5IGxpc3QgZm9yIHthbGVydF90eXBlfSIKCiAgICAgICAgICAgIG1hdGNoZWQuYXBwZW5kKHsKICAgICAgICAgICAgICAgICJzZWN0aW9uIjogc2VjdGlvbiwKICAgICAgICAgICAgICAgICJzZXZlcml0eSI6IHNldiwKICAgICAgICAgICAgICAgICJtZXNzYWdlIjogbXNnLAogICAgICAgICAgICAgICAgInJlY29tbWVuZGF0aW9uIjogcmVjLAogICAgICAgICAgICAgICAgInJlbGV2YW5jZSI6IHJlbGV2YW5jZSwKICAgICAgICAgICAgICAgICJyZWxldmFuY2VfcmVhc29uIjogcmVhc29uLAogICAgICAgICAgICAgICAgInByaW9yaXR5X3JhbmsiOiBwcmlvcml0eV9yYW5rLAogICAgICAgICAgICAgICAgImxhc3RfZXZlbnQiOiBmaW5kaW5nLmdldCgibGFzdF9ldmVudCIpLAogICAgICAgICAgICAgICAgInNpZ25hbHMiOiBleHRyYWN0X3NpZ25hbHMoZmluZGluZyksCiAgICAgICAgICAgIH0pCgogICAgIyBTb3J0OiBkaXJlY3QgZmlyc3QsIHRoZW4gY29udHJpYnV0aW5nIGJ5IHNlY3Rpb24gcHJpb3JpdHksIHRoZW4gYmFja2dyb3VuZAogICAgb3JkZXIgPSB7ImRpcmVjdCI6IDAsICJjb250cmlidXRpbmciOiAxLCAiYmFja2dyb3VuZCI6IDJ9CiAgICBtYXRjaGVkLnNvcnQoa2V5PWxhbWJkYSBmOiAob3JkZXJbZlsicmVsZXZhbmNlIl1dLCBmWyJwcmlvcml0eV9yYW5rIl0pKQogICAgcmV0dXJuIG1hdGNoZWQKCgojIOKUgOKUgCBDYXVzYXRpb24gY2hhaW4gYnVpbGRlciDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIAKCmRlZiBidWlsZF9jYXVzYXRpb25fY2hhaW4obWF0Y2hlZDogbGlzdFtkaWN0XSwgYWxlcnQ6IGRpY3QpIC0+IGxpc3RbZGljdF06CiAgICBjaGFpbiA9IFtdCiAgICBkaXJlY3QgPSBbZiBmb3IgZiBpbiBtYXRjaGVkIGlmIGZbInJlbGV2YW5jZSJdID09ICJkaXJlY3QiXQogICAgY29udHJpYnV0aW5nID0gW2YgZm9yIGYgaW4gbWF0Y2hlZCBpZiBmWyJyZWxldmFuY2UiXSA9PSAiY29udHJpYnV0aW5nIl0KCiAgICBpZiBkaXJlY3Q6CiAgICAgICAgZmlyc3QgPSBkaXJlY3RbMF0KICAgICAgICBjaGFpbi5hcHBlbmQoewogICAgICAgICAgICAibGV2ZWwiOiAxLAogICAgICAgICAgICAibGFiZWwiOiAicm9vdF9jYXVzZSIsCiAgICAgICAgICAgICJkZXNjcmlwdGlvbiI6IGZpcnN0WyJtZXNzYWdlIl0sCiAgICAgICAgICAgICJldmlkZW5jZSI6IGYiU2VudGluZWwgQ1JJVElDQUwgZmluZGluZyBpbiB7Zmlyc3RbJ3NlY3Rpb24nXX0iLAogICAgICAgIH0pCiAgICBlbHNlOgogICAgICAgIGNoYWluLmFwcGVuZCh7CiAgICAgICAgICAgICJsZXZlbCI6IDEsCiAgICAgICAgICAgICJsYWJlbCI6ICJyb290X2NhdXNlIiwKICAgICAgICAgICAgImRlc2NyaXB0aW9uIjogIlVua25vd24g4oCUIHNlZSBtYXRjaGVkIGZpbmRpbmdzIGZvciBoeXBvdGhlc2VzIiwKICAgICAgICAgICAgImV2aWRlbmNlIjogIk5vIGRpcmVjdCBDUklUSUNBTCBmaW5kaW5nIG1hdGNoZWQgdGhlIGFsZXJ0IHNlcnZpY2UvbmFtZXNwYWNlIiwKICAgICAgICB9KQoKICAgIGZvciBpLCBjZiBpbiBlbnVtZXJhdGUoY29udHJpYnV0aW5nWzoyXSk6ICAjIG1heCAyIGludGVybWVkaWF0ZSBzdGVwcwogICAgICAgIGNoYWluLmFwcGVuZCh7CiAgICAgICAgICAgICJsZXZlbCI6IGxlbihjaGFpbikgKyAxLAogICAgICAgICAgICAibGFiZWwiOiAiaW50ZXJtZWRpYXRlIiwKICAgICAgICAgICAgImRlc2NyaXB0aW9uIjogY2ZbIm1lc3NhZ2UiXSwKICAgICAgICAgICAgImV2aWRlbmNlIjogZiJTZW50aW5lbCB7Y2ZbJ3NldmVyaXR5J119IGZpbmRpbmcgaW4ge2NmWydzZWN0aW9uJ119IiwKICAgICAgICB9KQoKICAgIGNoYWluLmFwcGVuZCh7CiAgICAgICAgImxldmVsIjogbGVuKGNoYWluKSArIDEsCiAgICAgICAgImxhYmVsIjogInN5bXB0b20iLAogICAgICAgICJkZXNjcmlwdGlvbiI6IGFsZXJ0LmdldCgiYWxlcnRfbmFtZSIsICJTZXJ2aWNlIGRlZ3JhZGF0aW9uIiksCiAgICAgICAgImV2aWRlbmNlIjogZiJBbGVydCBzb3VyY2U6IHthbGVydC5nZXQoJ2FsZXJ0X3NvdXJjZScsICd1bmtub3duJyl9IiwKICAgIH0pCgogICAgY2hhaW4uYXBwZW5kKHsKICAgICAgICAibGV2ZWwiOiBsZW4oY2hhaW4pICsgMSwKICAgICAgICAibGFiZWwiOiAiYWxlcnQiLAogICAgICAgICJkZXNjcmlwdGlvbiI6IGYiQWxlcnQgdHJpZ2dlcmVkOiB7YWxlcnQuZ2V0KCdhbGVydF9uYW1lJywgJ3Vua25vd24nKX0iLAogICAgICAgICJldmlkZW5jZSI6IGYiU3RhcnQgdGltZToge2FsZXJ0LmdldCgnc3RhcnRfdGltZScsICd1bmtub3duJyl9IiwKICAgIH0pCgogICAgcmV0dXJuIGNoYWluCgoKIyDilIDilIAgRml4IHBsYW4gYnVpbGRlciDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIAKCmRlZiBleHRyYWN0X3Jlc291cmNlX2Zyb21fbWVzc2FnZShtZXNzYWdlOiBzdHIsIG5hbWVzcGFjZTogc3RyKSAtPiBkaWN0OgogICAgIiIiCiAgICBFeHRyYWN0IHN0cnVjdHVyZWQgcmVzb3VyY2UgbmFtZXMgZnJvbSBhIHNlbnRpbmVsIGZpbmRpbmcgbWVzc2FnZS4KICAgIFVzZWQgb25seSB3aGVuIHJlY29tbWVuZGF0aW9uIGZpZWxkIGlzIG51bGwuCiAgICAiIiIKICAgIHJlc3VsdCA9IHsibmFtZXNwYWNlIjogbmFtZXNwYWNlIG9yICI8VUNLTU9XTj4iLCAicG9kIjogTm9uZSwgImRlcGxveSI6IE5vbmUsICJzZWNyZXQiOiBOb25lfQoKICAgICMgUG9kOiAiUG9kIG5zL25hbWUiIG9yICJwb2QgbnMvbmFtZSIKICAgIG0gPSByZS5zZWFyY2gocidbUHBdb2RccytbXHctXSsvKFtcdy1dKyknLCBtZXNzYWdlKQogICAgaWYgbToKICAgICAgICByZXN1bHRbInBvZCJdID0gbS5ncm91cCgxKQoKICAgICMgRGVwbG95bWVudDogIkRlcGxveW1lbnQgbnMvbmFtZSIKICAgIG0gPSByZS5zZWFyY2gocidbRGRdZXBsb3ltZW50XHMrW1x3LV0rLyhbXHctXSspJywgbWVzc2FnZSkKICAgIGlmIG06CiAgICAgICAgcmVzdWx0WyJkZXBsb3kiXSA9IG0uZ3JvdXAoMSkKCiAgICAjIFNlY3JldDogIlNlY3JldCBgbmFtZWAiIG9yICJzZWNyZXQgJ25hbWUnIgogICAgbSA9IHJlLnNlYXJjaChyIltTc11lY3JldFxzK1tgJ1wiXT8oW1x3LV0rKVtgJ1wiXT8iLCBtZXNzYWdlKQogICAgaWYgbToKICAgICAgICByZXN1bHRbInNlY3JldCJdID0gbS5ncm91cCgxKQoKICAgIHJldHVybiByZXN1bHQKCgpkZWYgX25hbWVzcGFjZV9mcm9tX2ZpbmRpbmcobWVzc2FnZTogc3RyKSAtPiBzdHIgfCBOb25lOgogICAgIiIiRXh0cmFjdCBuYW1lc3BhY2UgZnJvbSBhIHNlbnRpbmVsIGZpbmRpbmcgbWVzc2FnZSBvZiB0aGUgZm9ybSAnbnMvcG9kLW5hbWUnLiIiIgogICAgbSA9IHJlLnNlYXJjaChyJ1xiKFthLXowLTldW2EtejAtOVwtXSspL1thLXowLTldW2EtejAtOVwtXSsnLCBtZXNzYWdlKQogICAgcmV0dXJuIG0uZ3JvdXAoMSkgaWYgbSBlbHNlIE5vbmUKCgpkZWYgZXh0cmFjdF9zaWduYWxzKGZpbmRpbmc6IGRpY3QpIC0+IGRpY3Q6CiAgICAiIiIKICAgIEV4dHJhY3QgY2xhc3NpZmljYXRpb24gc2lnbmFscyBmcm9tIGEgc2VudGluZWwgZmluZGluZy4KCiAgICBSZXR1cm5zIG9ubHkgd2hhdCB0aGUgQ0xJIGNhbiBkZXRlcm1pbmUgZnJvbSB0aGUgc2VudGluZWwgSlNPTiDigJQgcmVzdGFydCBjb3VudCwKICAgIGV4aXQgY29kZSwgcmVwbGljYSByYXRpbywgbGFzdCBldmVudCBhZ2UuIENsYXNzaWZpY2F0aW9uIChMSU1JVCBUT08gTE9XIHZzCiAgICBQT1NTSUJMRSBMRUFLLCBBUFBFRVJST1IgdnMgU0lHVEVSTSwgZXRjLikgcmVxdWlyZXMga3ViZWN0bCBkZXNjcmliZSBvdXRwdXQKICAgIHRoYXQgdGhlIENMSSBkb2VzIG5vdCBoYXZlOyB0aGF0IHN0ZXAgYmVsb25ncyBpbiB0aGUgc2tpbGwgbGF5ZXIuCiAgICAiIiIKICAgIG1zZyA9IGZpbmRpbmcuZ2V0KCJtZXNzYWdlIiwgIiIpCiAgICBzaWduYWxzOiBkaWN0ID0ge30KCiAgICAjIFJlc3RhcnQgY291bnQg4oCUICAiUmVzdGFydGVkIDUgdGltZXMiLCAiNSByZXN0YXJ0cyIsICJyZXN0YXJ0IGNvdW50OiA1IgogICAgbSA9IHJlLnNlYXJjaChyJ3Jlc3RhcnQoPzplZHxzfFxzK2NvdW50KT9bOlxzXSsoXGQrKXwoXGQrKVxzK3Jlc3RhcnQnLCBtc2csIHJlLklHTk9SRUNBU0UpCiAgICBpZiBtOgogICAgICAgIHNpZ25hbHNbInJlc3RhcnRfY291bnQiXSA9IGludChtLmdyb3VwKDEpIG9yIG0uZ3JvdXAoMikpCgogICAgIyBFeGl0IGNvZGUg4oCUICAiZXhpdCBjb2RlIDEzNyIsICJleGl0IDEiCiAgICBtID0gcmUuc2VhcmNoKHInZXhpdFxzKyg/OmNvZGVccyk/KFxkKyknLCBtc2csIHJlLklHTk9SRUNBU0UpCiAgICBpZiBtOgogICAgICAgIHNpZ25hbHNbImV4aXRfY29kZSJdID0gaW50KG0uZ3JvdXAoMSkpCiAgICBlbGlmICJPT01LaWxsZWQiIGluIG1zZzoKICAgICAgICBzaWduYWxzWyJleGl0X2NvZGUiXSA9IDEzNyAgIyBPT01LaWxsIGlzIGFsd2F5cyBTSUdLSUxMIOKGkiAxMjgrOQoKICAgICMgUmVwbGljYSByYXRpbyDigJQgIjAvNCByZXBsaWNhcyIsICIyLzMgcG9kcyIKICAgIG0gPSByZS5zZWFyY2gocidcYihcZCspLyhcZCspXHMrKD86cmVwbGljYXM/fHBvZHM/KScsIG1zZywgcmUuSUdOT1JFQ0FTRSkKICAgIGlmIG06CiAgICAgICAgc2lnbmFsc1sicmVwbGljYXNfcmVhZHkiXSA9IGludChtLmdyb3VwKDEpKQogICAgICAgIHNpZ25hbHNbInJlcGxpY2FzX2Rlc2lyZWQiXSA9IGludChtLmdyb3VwKDIpKQoKICAgICMgTGFzdCBldmVudCBhZ2UgaW4gc2Vjb25kcyDigJQgZnJvbSBzZW50aW5lbCBsYXN0X2V2ZW50LnRpbWVzdGFtcCB2cyBub3cKICAgIGxhc3RfZXZlbnQgPSBmaW5kaW5nLmdldCgibGFzdF9ldmVudCIpIG9yIHt9CiAgICB0cyA9IGxhc3RfZXZlbnQuZ2V0KCJ0aW1lc3RhbXAiKQogICAgaWYgdHM6CiAgICAgICAgdHJ5OgogICAgICAgICAgICBldl9kdCA9IGRhdGV0aW1lLmZyb21pc29mb3JtYXQodHMucnN0cmlwKCJaIikpLnJlcGxhY2UodHppbmZvPXRpbWV6b25lLnV0YykKICAgICAgICAgICAgYWdlID0gaW50KChkYXRldGltZS5ub3codGltZXpvbmUudXRjKSAtIGV2X2R0KS50b3RhbF9zZWNvbmRzKCkpCiAgICAgICAgICAgIGlmIGFnZSA+PSAwOgogICAgICAgICAgICAgICAgc2lnbmFsc1sibGFzdF9ldmVudF9hZ2Vfc2Vjb25kcyJdID0gYWdlCiAgICAgICAgZXhjZXB0IFZhbHVlRXJyb3I6CiAgICAgICAgICAgIHBhc3MKCiAgICByZXR1cm4gc2lnbmFscwoKCmRlZiBidWlsZF9maXhfcGxhbihtYXRjaGVkOiBsaXN0W2RpY3RdLCBhbGVydDogZGljdCkgLT4gZGljdDoKICAgICIiIgogICAgQnVpbGQgUDEvUDIvUDMgZml4IHBsYW4uCgogICAgUDE6IHVzZSB0aGUgJ3JlY29tbWVuZGF0aW9uJyBmaWVsZCBmcm9tIHRoZSB0b3AgZGlyZWN0IG9yIGNvbnRyaWJ1dGluZyBmaW5kaW5nLgogICAgICAgIFRoaXMgaXMgYWxyZWFkeSBhIGNvbXBsZXRlIGt1YmVjdGwgY29tbWFuZCDigJQgbm8gcmVnZXggbmVlZGVkLgogICAgICAgIEZhbGwgYmFjayB0byBrdWJlY3RsIGRlc2NyaWJlIHdoZW4gcmVjb21tZW5kYXRpb24gaXMgbnVsbC4KICAgIFAyOiBhbHdheXMga3ViZWN0bCBnZXQgcG9kcyAtbiA8bnM+IC13ICsgcm9sbG91dCBzdGF0dXMuCiAgICBQMzogcmVjb21tZW5kYXRpb24gZnJvbSB0aGUgc2Vjb25kIG1hdGNoZWQgZmluZGluZywgb3IgZnJvbSB0aGUgdG9wIGZpbmRpbmcgaWYgb25seSBvbmUuCiAgICAiIiIKICAgIGFsZXJ0X25hbWVzcGFjZSA9IGFsZXJ0LmdldCgibmFtZXNwYWNlIikKICAgIGRpcmVjdCA9IFtmIGZvciBmIGluIG1hdGNoZWQgaWYgZlsicmVsZXZhbmNlIl0gPT0gImRpcmVjdCJdCiAgICBjb250cmlidXRpbmcgPSBbZiBmb3IgZiBpbiBtYXRjaGVkIGlmIGZbInJlbGV2YW5jZSJdID09ICJjb250cmlidXRpbmciXQogICAgYWxsX3JlbGV2YW50ID0gZGlyZWN0ICsgY29udHJpYnV0aW5nCgogICAgIyBQcmVmZXIgbmFtZXNwYWNlIGZyb20gbWF0Y2hlZCBmaW5kaW5ncyAoc2VudGluZWwgaXMgYXV0aG9yaXRhdGl2ZSBmb3IgYWN0dWFsIHJlc291cmNlIG5zKQogICAgIyBGYWxsIGJhY2sgdG8gYWxlcnQgbmFtZXNwYWNlLCB0aGVuIFVOS05PV04KICAgIG5hbWVzcGFjZSA9IGFsZXJ0X25hbWVzcGFjZQogICAgaWYgYWxsX3JlbGV2YW50OgogICAgICAgIGZvdW5kX25zID0gX25hbWVzcGFjZV9mcm9tX2ZpbmRpbmcoYWxsX3JlbGV2YW50WzBdWyJtZXNzYWdlIl0pCiAgICAgICAgaWYgZm91bmRfbnMgYW5kIG5vdCBuYW1lc3BhY2U6CiAgICAgICAgICAgIG5hbWVzcGFjZSA9IGZvdW5kX25zCiAgICBuYW1lc3BhY2UgPSBuYW1lc3BhY2Ugb3IgIjxVTktOT1dOPiIKCiAgICAjIOKUgOKUgCBQMTogc3RvcCB0aGUgYmxlZWRpbmcg4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSAICAgIHAxX2FjdGlvbiA9ICJJbnZlc3RpZ2F0ZSBhbmQgcmVzb2x2ZSB0aGUgcm9vdCBjYXVzZSIKICAgIHAxX2NvbW1hbmQgPSBOb25lCiAgICBwMV9vdXRjb21lID0gIlNlcnZpY2UgcmVzdG9yZXMgdG8gaGVhbHRoeSBzdGF0ZSIKCiAgICBpZiBhbGxfcmVsZXZhbnQ6CiAgICAgICAgdG9wID0gYWxsX3JlbGV2YW50WzBdCiAgICAgICAgbXNnID0gdG9wWyJtZXNzYWdlIl0KCiAgICAgICAgaWYgdG9wWyJyZWNvbW1lbmRhdGlvbiJdOgogICAgICAgICAgICAjIFByaW1hcnk6IHVzZSB0aGUgc2VudGluZWwgcmVjb21tZW5kYXRpb24gZGlyZWN0bHkg4oCUIGl0IGlzIGFscmVhZHkgYQogICAgICAgICAgICAjIGNvbXBsZXRlLCBjb3JyZWN0IGt1YmVjdGwgY29tbWFuZC4gTm8gdGVtcGxhdGUtZmlsbGluZyBuZWVkZWQuCiAgICAgICAgICAgIHAxX2NvbW1hbmQgPSB0b3BbInJlY29tbWVuZGF0aW9uIl0KICAgICAgICAgICAgcDFfYWN0aW9uID0gZiJBZGRyZXNzIHt0b3BbJ3NlY3Rpb24nXX0gQ1JJVElDQUwgZmluZGluZyIKICAgICAgICBlbHNlOgogICAgICAgICAgICAjIFNlbnRpbmVsIHByb3ZpZGVkIG5vIHJlY29tbWVuZGF0aW9uLiBEbyBub3QgZ3Vlc3MgYSBmaXgg4oCUIHRoZSBDTEkKICAgICAgICAgICAgIyBsYWNrcyBrdWJlY3RsIGRlc2NyaWJlIG91dHB1dCwgbG9nIGNvbnRlbnQsIGFuZCBtZW1vcnkgdHJlbmRzIG5lZWRlZAogICAgICAgICAgICAjIHRvIGNsYXNzaWZ5IHRoZSByb290IGNhdXNlIChlLmcuIE9PTSBTSU1JVCBUT08gTE9XIHZzIFBPU1NJQkxFIExFQUssCiAgICAgICAgICAgICMgQ3Jhc2hMb29wIEFQUCBFUlJPUiB2cyBTSUdURVJNKS4gRW1pdCBhIGRlc2NyaWJlIGNvbW1hbmQgdG8gZ2F0aGVyCiAgICAgICAgICAgICMgdGhhdCBldmlkZW5jZTsgdGhlIHNraWxsIGxheWVyIGRvZXMgdGhlIGNsYXNzaWZpY2F0aW9uLgogICAgICAgICAgICByZXMgPSBleHRyYWN0X3Jlc291cmNlX2Zyb21fbWVzc2FnZShtc2csIG5hbWVzcGFjZSkKICAgICAgICAgICAgbnMgPSByZXNbIm5hbWVzcGFjZSJdCgogICAgICAgICAgICBpZiByZXNbInBvZCJdOgogICAgICAgICAgICAgICAgcDFfY29tbWFuZCA9IGYia3ViZWN0bCBkZXNjcmliZSBwb2Qve3Jlc1sncG9kJ119IC1uIHtuc30iCiAgICAgICAgICAgICAgICBwMV9hY3Rpb24gPSBmIkdhdGhlciBwb2Qgc3RhdGUg4oCUIHVzZSBkZXNjcmliZSBvdXRwdXQgdG8gY2xhc3NpZnkgcm9vdCBjYXVzZSBiZWZvcmUgYXBwbHlpbmcgYSBmaXgiCiAgICAgICAgICAgIGVsaWYgcmVzWyJkZXBsb3kiXToKICAgICAgICAgICAgICAgIHAxX2NvbW1hbmQgPSBmImt1YmVjdGwgZGVzY3JpYmUgZGVwbG95L3tyZXNbJ2RlcGxveSddfSAtbiB7bnN9IgogICAgICAgICAgICAgICAgcDFfYWN0aW9uID0gZiJHYXRoZXIgZGVwbG95bWVudCBzdGF0ZSDigJQgdXNlIGRlc2NyaWJlIG91dHB1dCB0byBjbGFzc2lmeSByb290IGNhdXNlIGJlZm9yZSBhcHBseWluZyBhIGZpeCIKICAgICAgICAgICAgZWxzZToKICAgICAgICAgICAgICAgIHAxX2NvbW1hbmQgPSBmImt1YmVjdGwgZGVzY3JpYmUgcG9kIC1sIGFwcD17YWxlcnQuZ2V0KCdzZXJ2aWNlJywgJzxTRVJWSUNFPicpfSAtbiB7bnN9IgogICAgICAgICAgICAgICAgcDFfYWN0aW9uID0gIkdhdGhlciBwb2Qgc3RhdGUg4oCUIHVzZSBkZXNjcmliZSBvdXRwdXQgdG8gY2xhc3NpZnkgcm9vdCBjYXVzZSBiZWZvcmUgYXBwbHlpbmcgYSBmaXgiCgogICAgICAgICAgICBwMV9vdXRjb21lID0gIlVzZSBkZXNjcmliZSBvdXRwdXQgdG8gY2xhc3NpZnkgcm9vdCBjYXVzZSwgdGhlbiBhcHBseSB0YXJnZXRlZCBmaXgiCgogICAgIyDilIDilIAgUDI6IGNvbmZpcm0gcmVjb3Zlcnkg4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA
+#!/usr/bin/env python3
+"""
+incident-triage — deterministic incident triage CLI tool.
+
+Accepts a sentinel JSON snapshot and an alert descriptor (JSON file or free text),
+correlates the alert symptom to sentinel findings, builds a causation chain, and
+emits a triage JSON report to stdout.
+
+No LLM calls. No external dependencies. stdlib only.
+
+Exit codes:
+  0 — triage complete, valid output
+  1 — namespace unknown; Claude must ask the user
+  2 — sentinel snapshot missing or invalid; Claude must collect cluster state
+  3 — no sentinel findings match the alert; low-confidence output produced
+
+Usage:
+  incident-triage [--sentinel-json <file>] [--alert <text or json file>]
+                  [--namespace <ns>] [--output-format json|text|html]
+"""
+
+import argparse
+import json
+import os
+import re
+import sys
+from datetime import datetime, timezone
+
+SCHEMA_VERSION = "1.0"
+
+# ── Alert type classification ─────────────────────────────────────────────────
+
+ALERT_TYPE_KEYWORDS = {
+    # SLO burn — probe-based (probe endpoint emits workflowStatus metrics)
+    "slo_burn_probe": [
+        "probe", "correctness", "workflowstatus", "pulse", "measured at probe",
+        "fast-burn alert for probe", "probe login",
+    ],
+    # SLO burn — service-level (HTTP error budget)
+    "slo_burn_service": [
+        "burn rate", "availability", "measured at service", "error budget",
+        "slo burn", "fast-burn alert for",
+    ],
+    # Kubernetes app health alerts (kube-prometheus-stack)
+    "kube_app_health": [
+        "kubepod", "kubedeployment", "kubestatefulset", "kubecontainer", "kubehpa",
+        "crashlooping", "notready", "replicasmismatch", "maxedout",
+        "crashloopbackoff", "crash loop",
+    ],
+    # Kubernetes resource pressure
+    "kube_resource": [
+        "kubememory", "kubecpu", "kubenode", "oomkilled", "overcommit",
+        "memory pressure", "cpu pressure",
+    ],
+    # Kubernetes storage
+    "kube_storage": [
+        "kubepersistentvolume", "fillingup", "pvc", "persistent volume",
+    ],
+    # ArgoCD health
+    "argocd_health": [
+        "argoapp", "argoappnothealthy", "outofsync", "argocd",
+    ],
+    # Missing metric / absent metric
+    "missing_metric": [
+        "missing", "absent", "not seen", "no data", "no metric",
+    ],
+    "high_error_rate": [
+        "error rate", "5xx", "http 5", "slo breach", "slo violation",
+        "500", "503", "502", "504",
+    ],
+    "service_unavailable": [
+        "unavailable", "down", "unreachable", "not responding", "connection refused",
+        "no endpoints", "0 replicas",
+    ],
+    "latency_spike": [
+        "latency", "slow", "timeout", "p99", "p95", "response time", "duration",
+    ],
+    "oom": [
+        "oom", "out of memory",
+    ],
+    "crash_loop": [
+        "restart count", "restarts", "above the threshold", "exit code", "restarting",
+    ],
+}
+
+SECTION_PRIORITY = {
+    "slo_burn_probe":      ["PODS", "WORKLOADS", "HPAS", "HTTP", "EVENTS"],
+    "slo_burn_service":    ["HTTP", "PODS", "WORKLOADS", "HPAS", "EVENTS"],
+    "kube_app_health":     ["PODS", "WORKLOADS", "EVENTS", "HPAS"],
+    "kube_resource":       ["NODES", "RESOURCES", "PODS", "EVENTS"],
+    "kube_storage":        ["PVCS", "PODS", "EVENTS"],
+    "argocd_health":       ["WORKLOADS", "PODS", "EVENTS"],
+    "missing_metric":      ["PODS", "WORKLOADS", "PROBES"],
+    "high_error_rate":     ["PODS", "PROBES", "WORKLOADS", "HTTP", "EVENTS"],
+    "service_unavailable": ["PODS", "HTTP", "WORKLOADS", "PROBES", "EVENTS"],
+    "latency_spike":       ["RESOURCES", "HPAS", "PODS", "NODES"],
+    "oom":                 ["PODS", "NODES", "RESOURCES", "EVENTS"],
+    "crash_loop":          ["PODS", "EVENTS", "WORKLOADS", "RESOURCES", "NODES"],
+    "unknown":             ["NODES", "PODS", "PROBES", "WORKLOADS", "HTTP", "gRPC",
+                            "EVENTS", "RESOURCES", "PVCS", "HPAS"],
+}
+
+# Findings that are always noise — never include in a causation chain regardless of alert type.
+# Checked as substring matches against finding messages (case-insensitive).
+KNOWN_NOISY_FINDINGS = [
+    "peep-v1",                          # GCE VM pointer — no K8s pods expected
+    "kube-system/app-kube-controller-manager",  # GKE managed control plane
+    "kube-system/app-kube-scheduler",   # GKE managed control plane
+]
+
+
+# ── Alert parsing ─────────────────────────────────────────────────────────────
+
+def classify_alert_type(text: str) -> str:
+    text_lower = text.lower()
+    # Iterate in definition order — more-specific types are defined first
+    for alert_type, keywords in ALERT_TYPE_KEYWORDS.items():
+        if any(kw in text_lower for kw in keywords):
+            return alert_type
+    return "unknown"
+
+
+def extract_start_time(text: str) -> str | None:
+    # ISO8601
+    m = re.search(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}', text)
+    if m:
+        return m.group(0) + "Z"
+    # HH:MM with "since" or "at"
+    m = re.search(r'(?:since|at)\s+(\d{1,2}:\d{2})', text, re.IGNORECASE)
+    if m:
+        return m.group(1)
+    return None
+
+
+def extract_namespace(text: str) -> str | None:
+    # GCP Cloud Monitoring format: namespace_name=my-namespace (inside {key=value} labels)
+    m = re.search(r'\bnamespace_name[=\s]+([a-z0-9][a-z0-9\-]+)', text, re.IGNORECASE)
+    if m:
+        return m.group(1)
+    # Explicit namespace= or namespace: forms (but not namespace_name — already handled above)
+    m = re.search(r'(?<!\w)namespace[=:\s]+([a-z0-9][a-z0-9\-]+)', text, re.IGNORECASE)
+    if m:
+        return m.group(1)
+    # <word>-ns or <word>-namespace patterns
+    m = re.search(r'\b([a-z0-9][a-z0-9\-]+-(?:ns|namespace))\b', text, re.IGNORECASE)
+    if m:
+        return m.group(1)
+    return None
+
+
+def extract_service(text: str) -> str | None:
+    # GCP Cloud Monitoring format: container_name=my-service
+    m = re.search(r'\bcontainer_name[=\s]+([a-z0-9][a-z0-9\-]+)', text, re.IGNORECASE)
+    if m:
+        return m.group(1)
+    # GCP format: service_name=my-service (system labels block)
+    m = re.search(r'\bservice_name[=\s]+([a-z0-9][a-z0-9\-]+)', text, re.IGNORECASE)
+    if m:
+        return m.group(1)
+    # Word before SLO, error rate, latency, unavailable, down
+    m = re.search(
+        r'([a-z0-9][a-z0-9\-_/\.]+)\s+(?:SLO|error rate|latency|unavailable|down|breach)',
+        text, re.IGNORECASE
+    )
+    if m:
+        return m.group(1).rstrip("/.-")
+    return None
+
+
+def parse_alert_freetext(text: str) -> dict:
+    return {
+        "alert_source": "freetext",
+        "alert_name": text[:120],
+        "service": extract_service(text),
+        "namespace": extract_namespace(text),
+        "start_time": extract_start_time(text),
+        "severity": "critical" if any(w in text.lower() for w in ["critical", "p1", "sev1", "slo breach"]) else "warning",
+        "labels": {},
+        "raw_body": text,
+    }
+
+
+def parse_alert(alert_arg: str) -> dict:
+    """Parse --alert argument: JSON file path, or free text."""
+    # Try as file path
+    if os.path.isfile(alert_arg):
+        try:
+            with open(alert_arg) as f:
+                data = json.load(f)
+            # Normalise to alert descriptor schema
+            return {
+                "alert_source": data.get("alert_source", "unknown"),
+                "alert_name": data.get("alert_name", ""),
+                "service": data.get("service"),
+                "namespace": data.get("namespace"),
+                "emitting_service": data.get("emitting_service"),
+                "dependencies": data.get("dependencies", []),
+                "playbook_url": data.get("playbook_url"),
+                "start_time": data.get("start_time"),
+                "severity": data.get("severity", "warning"),
+                "labels": data.get("labels", {}),
+                "raw_body": data.get("raw_body", ""),
+            }
+        except (json.JSONDecodeError, OSError):
+            pass  # Fall through to free-text parse
+    return parse_alert_freetext(alert_arg)
+
+
+def load_sentinel(path: str) -> dict | None:
+    try:
+        with open(path) as f:
+            data = json.load(f)
+        if data.get("schema_version") != "1.0":
+            print(f"WARNING: sentinel JSON schema version '{data.get('schema_version')}' may differ from expected 1.0", file=sys.stderr)
+        return data
+    except (json.JSONDecodeError, OSError) as e:
+        print(f"ERROR: cannot read sentinel JSON from '{path}': {e}", file=sys.stderr)
+        return None
+
+
+# ── Correlation engine ────────────────────────────────────────────────────────
+
+def _is_noisy(message: str) -> bool:
+    """Return True if this finding matches the known-noisy suppression list."""
+    msg_lower = message.lower()
+    return any(noise.lower() in msg_lower for noise in KNOWN_NOISY_FINDINGS)
+
+
+def _in_causal_scope(msg_lower: str, emitting_service: str, dependencies: list[str],
+                     namespace: str) -> bool:
+    """
+    Return True if a finding message is within the causal scope defined by the
+    alert-service-map (emitting_service + dependencies + namespace).
+    When no emitting_service is known, all findings are in scope.
+    """
+    if not emitting_service:
+        return True
+    targets = [emitting_service.lower()] + [d.lower() for d in (dependencies or [])]
+    if namespace:
+        targets.append(namespace.lower())
+    return any(t in msg_lower for t in targets)
+
+
+def score_findings(sentinel: dict, alert: dict, alert_type: str) -> list[dict]:
+    """
+    Score each sentinel finding as direct / contributing / background.
+
+    Step 0 (alert-service-map scoping): if emitting_service is set, only findings
+    that reference the emitting service, its dependencies, or the alert namespace
+    are eligible for direct/contributing classification. All others are background.
+
+    Known-noisy findings are suppressed entirely (not included in output).
+
+    Primary P1 source: the 'recommendation' field on matched findings —
+    it is already a complete, executable kubectl command. We only fall back
+    to a describe command when recommendation is null.
+    """
+    priority_sections = SECTION_PRIORITY.get(alert_type, SECTION_PRIORITY["unknown"])
+    service = (alert.get("service") or "").lower()
+    namespace = (alert.get("namespace") or "").lower()
+    emitting_service = (alert.get("emitting_service") or "").lower()
+    dependencies = alert.get("dependencies") or []
+
+    matched = []
+    for section_obj in sentinel.get("sections", []):
+        section = section_obj["section"]
+        in_priority = section in priority_sections
+        priority_rank = priority_sections.index(section) if in_priority else 999
+
+        for finding in section_obj.get("findings", []):
+            sev = finding.get("severity", "OK")
+            if sev == "OK":
+                continue
+
+            msg = finding.get("message") or ""
+            msg_lower = msg.lower()
+            rec = finding.get("recommendation")
+
+            # Suppress known-noisy findings unconditionally
+            if _is_noisy(msg):
+                continue
+
+            # Step 0: scope filter — if emitting_service is known, restrict to causal path
+            in_scope = _in_causal_scope(msg_lower, emitting_service, dependencies, namespace)
+
+            # Direct: CRITICAL + in priority section + in causal scope + references service/ns
+            is_direct = (
+                sev == "CRITICAL"
+                and in_priority
+                and in_scope
+                and (
+                    (service and service in msg_lower)
+                    or (namespace and namespace in msg_lower)
+                    or (emitting_service and emitting_service in msg_lower)
+                )
+            )
+
+            # Contributing: CRITICAL or WARN in a priority section and in causal scope
+            is_contributing = (not is_direct) and in_priority and in_scope and sev in ("CRITICAL", "WARN")
+
+            if is_direct:
+                relevance = "direct"
+                reason = f"CRITICAL finding in priority section {section}; message references service/namespace from alert"
+            elif is_contributing:
+                relevance = "contributing"
+                reason = f"{sev} finding in priority section {section} (rank {priority_rank + 1})"
+            elif not in_scope:
+                relevance = "background"
+                reason = f"Outside causal scope (emitting_service={emitting_service or 'unknown'})"
+            else:
+                relevance = "background"
+                reason = f"Section {section} not in priority list for {alert_type}"
+
+            matched.append({
+                "section": section,
+                "severity": sev,
+                "message": msg,
+                "recommendation": rec,
+                "relevance": relevance,
+                "relevance_reason": reason,
+                "priority_rank": priority_rank,
+                "last_event": finding.get("last_event"),
+                "signals": extract_signals(finding),
+            })
+
+    # Sort: direct first, then contributing by section priority, then background
+    order = {"direct": 0, "contributing": 1, "background": 2}
+    matched.sort(key=lambda f: (order[f["relevance"]], f["priority_rank"]))
+    return matched
+
+
+# ── Causation chain builder ───────────────────────────────────────────────────
+
+def build_causation_chain(matched: list[dict], alert: dict) -> list[dict]:
+    chain = []
+    direct = [f for f in matched if f["relevance"] == "direct"]
+    contributing = [f for f in matched if f["relevance"] == "contributing"]
+
+    if direct:
+        first = direct[0]
+        chain.append({
+            "level": 1,
+            "label": "root_cause",
+            "description": first["message"],
+            "evidence": f"Sentinel CRITICAL finding in {first['section']}",
+        })
+    else:
+        chain.append({
+            "level": 1,
+            "label": "root_cause",
+            "description": "Unknown — see matched findings for hypotheses",
+            "evidence": "No direct CRITICAL finding matched the alert service/namespace",
+        })
+
+    for i, cf in enumerate(contributing[:2]):  # max 2 intermediate steps
+        chain.append({
+            "level": len(chain) + 1,
+            "label": "intermediate",
+            "description": cf["message"],
+            "evidence": f"Sentinel {cf['severity']} finding in {cf['section']}",
+        })
+
+    chain.append({
+        "level": len(chain) + 1,
+        "label": "symptom",
+        "description": alert.get("alert_name", "Service degradation"),
+        "evidence": f"Alert source: {alert.get('alert_source', 'unknown')}",
+    })
+
+    chain.append({
+        "level": len(chain) + 1,
+        "label": "alert",
+        "description": f"Alert triggered: {alert.get('alert_name', 'unknown')}",
+        "evidence": f"Start time: {alert.get('start_time', 'unknown')}",
+    })
+
+    return chain
+
+
+# ── Fix plan builder ──────────────────────────────────────────────────────────
+
+def extract_resource_from_message(message: str, namespace: str) -> dict:
+    """
+    Extract structured resource names from a sentinel finding message.
+    Used only when recommendation field is null.
+    """
+    result = {"namespace": namespace or "<UNKNOWN>", "pod": None, "deploy": None, "secret": None}
+
+    # Pod: "Pod ns/name" or "pod ns/name"
+    m = re.search(r'[Pp]od\s+[\w-]+/([\w-]+)', message)
+    if m:
+        result["pod"] = m.group(1)
+
+    # Deployment: "Deployment ns/name"
+    m = re.search(r'[Dd]eployment\s+[\w-]+/([\w-]+)', message)
+    if m:
+        result["deploy"] = m.group(1)
+
+    # Secret: "Secret `name`" or "secret 'name'"
+    m = re.search(r"[Ss]ecret\s+[`'\"]?([\w-]+)[`'\"]?", message)
+    if m:
+        result["secret"] = m.group(1)
+
+    return result
+
+
+def _namespace_from_finding(message: str) -> str | None:
+    """Extract namespace from a sentinel finding message of the form 'ns/pod-name'."""
+    m = re.search(r'\b([a-z0-9][a-z0-9\-]+)/[a-z0-9][a-z0-9\-]+', message)
+    return m.group(1) if m else None
+
+
+def extract_signals(finding: dict) -> dict:
+    """
+    Extract classification signals from a sentinel finding.
+
+    Returns only what the CLI can determine from the sentinel JSON — restart count,
+    exit code, replica ratio, last event age. Classification (LIMIT TOO LOW vs
+    POSSIBLE LEAK, APP ERROR vs SIGTERM, etc.) requires kubectl describe output
+    that the CLI does not have; that step belongs in the skill layer.
+    """
+    msg = finding.get("message", "")
+    signals: dict = {}
+
+    # Restart count — "Restarted 5 times", "5 restarts", "restart count: 5"
+    m = re.search(r'restart(?:ed|s|\s+count)?[:\s]+(\d+)|(\d+)\s+restart', msg, re.IGNORECASE)
+    if m:
+        signals["restart_count"] = int(m.group(1) or m.group(2))
+
+    # Exit code — "exit code 137", "exit 1"
+    m = re.search(r'exit\s+(?:code\s+)?(\d+)', msg, re.IGNORECASE)
+    if m:
+        signals["exit_code"] = int(m.group(1))
+    elif "OOMKilled" in msg:
+        signals["exit_code"] = 137  # OOMKill is always SIGKILL → 128+9
+
+    # Replica ratio — "0/4 replicas", "2/3 pods"
+    m = re.search(r'\b(\d+)/(\d+)\s+(?:replicas?|pods?)', msg, re.IGNORECASE)
+    if m:
+        signals["replicas_ready"] = int(m.group(1))
+        signals["replicas_desired"] = int(m.group(2))
+
+    # Last event age in seconds — from sentinel last_event.timestamp vs now
+    last_event = finding.get("last_event") or {}
+    ts = last_event.get("timestamp")
+    if ts:
+        try:
+            ev_dt = datetime.fromisoformat(ts.rstrip("Z")).replace(tzinfo=timezone.utc)
+            age = int((datetime.now(timezone.utc) - ev_dt).total_seconds())
+            if age >= 0:
+                signals["last_event_age_seconds"] = age
+        except ValueError:
+            pass
+
+    return signals
+
+
+def build_fix_plan(matched: list[dict], alert: dict) -> dict:
+    """
+    Build P1/P2/P3 fix plan.
+
+    P1: use the 'recommendation' field from the top direct or contributing finding.
+        This is already a complete kubectl command — no regex needed.
+        Fall back to kubectl describe when recommendation is null; the CLI lacks
+        the describe output, log content, and memory trends needed to classify
+        the root cause (OOM LIMIT TOO LOW vs POSSIBLE LEAK, CrashLoop APP ERROR
+        vs SIGTERM, etc.). Classification belongs in the skill layer.
+    P2: always kubectl get pods -n <ns> -w.
+    P3: recommendation from the second matched finding, or from the top finding if only one.
+    """
+    alert_namespace = alert.get("namespace")
+    direct = [f for f in matched if f["relevance"] == "direct"]
+    contributing = [f for f in matched if f["relevance"] == "contributing"]
+    all_relevant = direct + contributing
+
+    # Prefer namespace from matched findings (sentinel is authoritative for actual resource ns)
+    # Fall back to alert namespace, then UNKNOWN
+    namespace = alert_namespace
+    if all_relevant:
+        found_ns = _namespace_from_finding(all_relevant[0]["message"])
+        if found_ns and not namespace:
+            namespace = found_ns
+    namespace = namespace or "<UNKNOWN>"
+
+    # ── P1: stop the bleeding ─────────────────────────────────────────────────
+    p1_action = "Investigate and resolve the root cause"
+    p1_command = None
+    p1_outcome = "Service restores to healthy state"
+
+    if all_relevant:
+        top = all_relevant[0]
+        msg = top["message"]
+
+        if top["recommendation"]:
+            # Primary: use the sentinel recommendation directly — it is already a
+            # complete, correct kubectl command. No template-filling needed.
+            p1_command = top["recommendation"]
+            p1_action = f"Address {top['section']} CRITICAL finding"
+        else:
+            # Sentinel provided no recommendation. Do not guess a fix — the CLI
+            # lacks kubectl describe output, log content, and memory trends needed
+            # to classify the root cause (e.g. OOM LIMIT TOO LOW vs POSSIBLE LEAK,
+            # CrashLoop APP ERROR vs SIGTERM). Emit a describe command to gather
+            # that evidence; the skill layer does the classification.
+            res = extract_resource_from_message(msg, namespace)
+            ns = res["namespace"]
+
+            if res["pod"]:
+                p1_command = f"kubectl describe pod/{res['pod']} -n {ns}"
+                p1_action = "Gather pod state — use describe output to classify root cause before applying a fix"
+            elif res["deploy"]:
+                p1_command = f"kubectl describe deploy/{res['deploy']} -n {ns}"
+                p1_action = "Gather deployment state — use describe output to classify root cause before applying a fix"
+            else:
+                p1_command = f"kubectl describe pod -l app={alert.get('service', '<SERVICE>')} -n {ns}"
+                p1_action = "Gather pod state — use describe output to classify root cause before applying a fix"
+
+            p1_outcome = "Use describe output to classify root cause, then apply targeted fix"
+
+    # ── P2: confirm recovery ──────────────────────────────────────────────────
     ns = namespace
     service = alert.get("service") or "<SERVICE>"
     p2_command = f"kubectl get pods -n {ns} -w"
@@ -10,13 +529,12 @@ IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwoiIiIKaW5jaWRlbnQtdHJpYWdlIOKAlCBkZXRlcm1pbmlzdGlj
     p3_action = "Address root cause to prevent recurrence"
     p3_outcome = "Issue does not repeat after next deployment"
 
-    # Use recommendation from second finding as P3, or top finding's recommendation if used in P2
+    # Use recommendation from second finding as P3, or top finding's recommendation if used in P1
     if len(all_relevant) > 1 and all_relevant[1]["recommendation"]:
         p3_command = all_relevant[1]["recommendation"]
         p3_action = f"Resolve {all_relevant[1]['section']} {all_relevant[1]['severity']} finding"
     elif all_relevant and all_relevant[0]["recommendation"]:
-        # If we used recommendation for P1, P3 gets the same command as context
-        # (P3 is "prevent" not "stop bleeding", so describe/inspect is appropriate)
+        # P1 used the recommendation; P3 is "prevent" not "stop bleeding"
         p3_action = "Review workload configuration to prevent recurrence"
 
     return {
@@ -36,3 +554,411 @@ IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwoiIiIKaW5jaWRlbnQtdHJpYWdlIOKAlCBkZXRlcm1pbmlzdGlj
             "expected_outcome": p3_outcome,
         },
     }
+
+
+# ── Confidence scoring ────────────────────────────────────────────────────────
+
+def score_confidence(matched: list[dict], alert: dict) -> tuple[str, str]:
+    direct = [f for f in matched if f["relevance"] == "direct"]
+    if not direct:
+        return "low", "No direct CRITICAL finding matched the alert service/namespace"
+
+    # Check timestamp proximity (within 5 minutes of alert start time)
+    alert_start = alert.get("start_time")
+    if alert_start:
+        try:
+            alert_dt = datetime.fromisoformat(alert_start.rstrip("Z")).replace(tzinfo=timezone.utc)
+            for f in direct:
+                le = f.get("last_event")
+                if le and le.get("timestamp"):
+                    try:
+                        ev_dt = datetime.fromisoformat(le["timestamp"].rstrip("Z")).replace(tzinfo=timezone.utc)
+                        delta = abs((ev_dt - alert_dt).total_seconds())
+                        if delta <= 300:
+                            return "high", f"Direct CRITICAL finding with event timestamp within {int(delta)}s of alert start"
+                    except ValueError:
+                        pass
+        except ValueError:
+            pass
+
+    return "medium", "Direct CRITICAL finding matched but no event timestamp within 5 minutes of alert start"
+
+
+# ── Blast radius ──────────────────────────────────────────────────────────────
+
+def assess_blast_radius(matched: list[dict], alert: dict) -> str:
+    direct = [f for f in matched if f["relevance"] == "direct"]
+    contrib = [f for f in matched if f["relevance"] == "contributing"]
+    sections_hit = {f["section"] for f in direct + contrib}
+
+    parts = []
+    ns = alert.get("namespace", "unknown")
+
+    if "WORKLOADS" in sections_hit:
+        parts.append(f"all workloads in namespace {ns} are degraded")
+    if "HTTP" in sections_hit:
+        parts.append("HTTP traffic to affected services is failing")
+    if "NODES" in sections_hit:
+        parts.append("node-level impact may affect other namespaces on the same node")
+    if "RESOURCES" in sections_hit:
+        parts.append("resource pressure may affect other workloads on the same node")
+
+    crits = sum(1 for f in matched if f["severity"] == "CRITICAL")
+    if crits > 2:
+        parts.append(f"{crits} CRITICAL findings suggest broad impact")
+
+    return "; ".join(parts) if parts else f"Impact appears contained to namespace {ns}"
+
+
+# ── Output ────────────────────────────────────────────────────────────────────
+
+def build_output(alert: dict, sentinel: dict, matched: list[dict], alert_type: str) -> dict:
+    chain = build_causation_chain(matched, alert)
+    fix = build_fix_plan(matched, alert)
+    confidence, confidence_reason = score_confidence(matched, alert)
+    blast = assess_blast_radius(matched, alert)
+
+    summary = sentinel.get("summary", {})
+
+    # Strip internal keys before emitting matched_findings
+    emit_matched = [
+        {
+            "section": f["section"],
+            "severity": f["severity"],
+            "message": f["message"],
+            "relevance": f["relevance"],
+            "relevance_reason": f["relevance_reason"],
+            "signals": f.get("signals", {}),
+        }
+        for f in matched
+        if f["relevance"] != "background"
+    ]
+
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "alert": {
+            "source": alert.get("alert_source", "unknown"),
+            "name": alert.get("alert_name", ""),
+            "service": alert.get("service"),
+            "namespace": alert.get("namespace"),
+            "emitting_service": alert.get("emitting_service"),
+            "dependencies": alert.get("dependencies", []),
+            "playbook_url": alert.get("playbook_url"),
+            "start_time": alert.get("start_time"),
+            "severity": alert.get("severity", "warning"),
+        },
+        "sentinel_summary": {
+            "context": sentinel.get("context", "unknown"),
+            "scope": sentinel.get("scope", "unknown"),
+            "critical": summary.get("critical", 0),
+            "warn": summary.get("warn", 0),
+            "ok": summary.get("ok", 0),
+        },
+        "correlation": {
+            "alert_type": alert_type,
+            "matched_findings": emit_matched,
+            "unmatched_alert": len([f for f in matched if f["relevance"] == "direct"]) == 0,
+        },
+        "causation_chain": chain,
+        "fix_plan": fix,
+        "blast_radius": blast,
+        "confidence": confidence,
+        "confidence_reason": confidence_reason,
+    }
+
+
+def validate_output(data: dict) -> list[str]:
+    errors = []
+    required_top = ["schema_version", "generated_at", "alert", "sentinel_summary",
+                    "correlation", "causation_chain", "fix_plan", "blast_radius",
+                    "confidence", "confidence_reason"]
+    for f in required_top:
+        if f not in data:
+            errors.append(f"Missing required field: {f}")
+
+    chain = data.get("causation_chain", [])
+    if len(chain) < 2:
+        errors.append("causation_chain must have at least 2 entries")
+
+    fix = data.get("fix_plan", {})
+    for step in ("p1", "p2", "p3"):
+        if step not in fix:
+            errors.append(f"fix_plan.{step} missing")
+
+    return errors
+
+
+# ── HTML renderer ─────────────────────────────────────────────────────────────
+
+def render_html(data: dict) -> str:
+    """Return a self-contained HTML page for the triage report.
+
+    Severity colour coding: CRITICAL → red, WARN → amber, OK → green.
+    No external dependencies — all CSS is inlined.
+    """
+    import html as _html
+
+    def e(v) -> str:
+        return _html.escape(str(v)) if v is not None else ""
+
+    def sev_class(s: str) -> str:
+        s = (s or "").upper()
+        if s == "CRITICAL":
+            return "critical"
+        if s in ("WARN", "WARNING"):
+            return "warn"
+        return "ok"
+
+    alert = data.get("alert", {})
+    sentinel = data.get("sentinel_summary", {})
+    corr = data.get("correlation", {})
+    chain = data.get("causation_chain", [])
+    fix = data.get("fix_plan", {})
+    blast = data.get("blast_radius", "")
+    confidence = data.get("confidence", "")
+    confidence_reason = data.get("confidence_reason", "")
+    generated_at = data.get("generated_at", "")
+
+    # Build findings rows
+    finding_rows = ""
+    for f in corr.get("matched_findings", []):
+        sc = sev_class(f.get("severity", ""))
+        finding_rows += (
+            f'<tr class="{sc}">'
+            f'<td>{e(f.get("section"))}</td>'
+            f'<td class="sev">{e(f.get("severity"))}</td>'
+            f'<td>{e(f.get("message"))}</td>'
+            f'<td>{e(f.get("relevance"))}</td>'
+            f'<td>{e(f.get("relevance_reason"))}</td>'
+            f'</tr>\n'
+        )
+    if not finding_rows:
+        finding_rows = '<tr><td colspan="5" class="ok">No matched findings</td></tr>\n'
+
+    # Build causation chain rows
+    chain_rows = ""
+    for step in chain:
+        sc = sev_class(step.get("severity", "ok"))
+        chain_rows += (
+            f'<tr class="{sc}">'
+            f'<td>{e(step.get("level"))}</td>'
+            f'<td>{e(step.get("description"))}</td>'
+            f'<td>{e(step.get("evidence", ""))}</td>'
+            f'</tr>\n'
+        )
+
+    # Fix plan sections
+    def fix_block(label: str, step: dict) -> str:
+        if not step:
+            return ""
+        return (
+            f'<h3>{e(label)}</h3>'
+            f'<p><strong>Action:</strong> {e(step.get("action", ""))}</p>'
+            f'<pre>{e(step.get("command", ""))}</pre>'
+            f'<p><em>Expected: {e(step.get("expected_outcome", ""))}</em></p>'
+        )
+
+    p1 = fix.get("p1", {})
+    p2 = fix.get("p2", {})
+    p3 = fix.get("p3", {})
+
+    conf_class = sev_class("CRITICAL" if confidence == "low" else
+                           "WARN" if confidence == "medium" else "ok")
+
+    css = """
+    body { font-family: 'Segoe UI', sans-serif; margin: 2em; background: #f8f9fa; color: #212529; }
+    h1 { border-bottom: 3px solid #0078d4; padding-bottom: 0.3em; }
+    h2 { margin-top: 1.5em; color: #0078d4; }
+    h3 { margin-top: 1em; }
+    table { border-collapse: collapse; width: 100%; margin: 0.5em 0; }
+    th { background: #0078d4; color: white; padding: 0.5em; text-align: left; }
+    td { padding: 0.4em 0.6em; border: 1px solid #dee2e6; vertical-align: top; }
+    tr.critical { background: #fde8e8; }
+    tr.warn { background: #fff3cd; }
+    tr.ok { background: #d4edda; }
+    td.sev { font-weight: bold; }
+    tr.critical td.sev { color: #c00; }
+    tr.warn td.sev { color: #856404; }
+    tr.ok td.sev { color: #155724; }
+    .badge { display: inline-block; padding: 0.2em 0.6em; border-radius: 4px;
+             font-weight: bold; font-size: 0.85em; }
+    .badge.critical { background: #f8d7da; color: #721c24; }
+    .badge.warn { background: #fff3cd; color: #856404; }
+    .badge.ok { background: #d4edda; color: #155724; }
+    pre { background: #212529; color: #f8f9fa; padding: 0.8em 1em; border-radius: 4px;
+          overflow-x: auto; font-size: 0.9em; }
+    .meta { color: #6c757d; font-size: 0.9em; }
+    """
+
+    html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Incident Triage — {e(alert.get('name', 'unknown'))}</title>
+<style>{css}</style>
+</head>
+<body>
+<h1>Incident Triage</h1>
+<p class="meta">Generated: {e(generated_at)} &nbsp;|&nbsp; Schema: {e(data.get('schema_version', ''))}</p>
+
+<h2>Alert</h2>
+<table>
+<tr><th>Field</th><th>Value</th></tr>
+<tr><td>Name</td><td>{e(alert.get('name'))}</td></tr>
+<tr><td>Service</td><td>{e(alert.get('service'))}</td></tr>
+<tr><td>Namespace</td><td>{e(alert.get('namespace'))}</td></tr>
+<tr><td>Severity</td><td>{e(alert.get('severity'))}</td></tr>
+<tr><td>Start time</td><td>{e(alert.get('start_time'))}</td></tr>
+<tr><td>Playbook</td><td>{e(alert.get('playbook_url') or 'None on record')}</td></tr>
+</table>
+
+<h2>Sentinel Summary</h2>
+<table>
+<tr><th>Context</th><th>Scope</th><th>Critical</th><th>Warn</th><th>OK</th></tr>
+<tr>
+  <td>{e(sentinel.get('context'))}</td>
+  <td>{e(sentinel.get('scope'))}</td>
+  <td class="sev" style="color:#c00">{e(sentinel.get('critical', 0))}</td>
+  <td class="sev" style="color:#856404">{e(sentinel.get('warn', 0))}</td>
+  <td class="sev" style="color:#155724">{e(sentinel.get('ok', 0))}</td>
+</tr>
+</table>
+
+<h2>Confidence: <span class="badge {conf_class}">{e(confidence.upper())}</span></h2>
+<p>{e(confidence_reason)}</p>
+
+<h2>Matched Findings</h2>
+<table>
+<tr><th>Section</th><th>Severity</th><th>Message</th><th>Relevance</th><th>Reason</th></tr>
+{finding_rows}
+</table>
+
+<h2>Causation Chain</h2>
+<table>
+<tr><th>Level</th><th>Description</th><th>Evidence</th></tr>
+{chain_rows}
+</table>
+<p><strong>Blast radius:</strong> {e(blast)}</p>
+
+<h2>Fix Plan</h2>
+<p><strong>Playbook:</strong> {e(alert.get('playbook_url') or 'None on record')}</p>
+{fix_block("P1 — Stop bleeding", p1)}
+{fix_block("P2 — Confirm recovery", p2)}
+{fix_block("P3 — Prevent recurrence", p3)}
+
+</body>
+</html>
+"""
+    return html
+
+
+# ── Main ──────────────────────────────────────────────────────────────────────
+
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="incident-triage — deterministic Kubernetes incident triage"
+    )
+    parser.add_argument("--sentinel-json", metavar="FILE",
+                        help="Path to sentinel JSON snapshot (kubectl-sentinel --json output)")
+    parser.add_argument("--alert", metavar="TEXT_OR_FILE",
+                        help="Alert description: free text or path to alert descriptor JSON")
+    parser.add_argument("--namespace", metavar="NS",
+                        help="Override namespace (used when not determinable from alert)")
+    parser.add_argument("--output-format", choices=["json", "text", "html"], default="json",
+                        help="Output format (default: json)")
+    args = parser.parse_args()
+
+    has_sentinel = bool(args.sentinel_json)
+    has_alert = bool(args.alert)
+
+    # Behaviour matrix
+    if not has_sentinel and not has_alert:
+        parser.print_help(sys.stderr)
+        return 1
+
+    alert: dict | None = None
+    sentinel: dict | None = None
+
+    if has_alert:
+        alert = parse_alert(args.alert)
+        if args.namespace:
+            alert["namespace"] = args.namespace
+
+    if has_sentinel:
+        sentinel = load_sentinel(args.sentinel_json)
+        if sentinel is None:
+            return 2
+
+    # Missing sentinel — emit alert parse result and exit 2 (Claude must collect state)
+    if has_alert and not has_sentinel:
+        partial = {
+            "schema_version": SCHEMA_VERSION,
+            "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "alert": {
+                "source": alert.get("alert_source", "unknown"),
+                "name": alert.get("alert_name", ""),
+                "service": alert.get("service"),
+                "namespace": alert.get("namespace"),
+                "start_time": alert.get("start_time"),
+                "severity": alert.get("severity", "warning"),
+            },
+            "sentinel_summary": None,
+            "error": "sentinel snapshot missing — Claude must collect cluster state with kubectl-sentinel",
+        }
+        print(json.dumps(partial, indent=2, ensure_ascii=False))
+        return 2
+
+    # Missing alert — emit sentinel summary and exit 2
+    if has_sentinel and not has_alert:
+        partial = {
+            "schema_version": SCHEMA_VERSION,
+            "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "alert": None,
+            "sentinel_summary": {
+                "context": sentinel.get("context", "unknown"),
+                "scope": sentinel.get("scope", "unknown"),
+                "critical": sentinel.get("summary", {}).get("critical", 0),
+                "warn": sentinel.get("summary", {}).get("warn", 0),
+                "ok": sentinel.get("summary", {}).get("ok", 0),
+            },
+            "error": "alert descriptor missing — provide --alert to complete triage",
+        }
+        print(json.dumps(partial, indent=2, ensure_ascii=False))
+        return 2
+
+    # Both provided — full triage
+    alert_type = classify_alert_type(
+        (alert.get("alert_name") or "") + " " + (alert.get("raw_body") or "")
+    )
+
+    # Namespace fallback
+    if not alert.get("namespace"):
+        alert["namespace"] = None
+        print("WARNING: namespace not determinable from alert — Claude should ask the user",
+              file=sys.stderr)
+        # Continue with null namespace; confidence will be low
+
+    matched = score_findings(sentinel, alert, alert_type)
+
+    no_direct = not any(f["relevance"] == "direct" for f in matched)
+    exit_code = 3 if no_direct else 0
+
+    output = build_output(alert, sentinel, matched, alert_type)
+
+    # Validate before emit
+    errors = validate_output(output)
+    if errors:
+        for err in errors:
+            print(f"WARNING: {err}", file=sys.stderr)
+        output["confidence"] = "low"
+
+    if args.output_format == "html":
+        print(render_html(output))
+    else:
+        print(json.dumps(output, indent=2, ensure_ascii=False))
+    return exit_code
+
+
+if __name__ == "__main__":
+    sys.exit(main())
