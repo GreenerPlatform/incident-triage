@@ -1,0 +1,13 @@
+{
+  "alert_source": "pagerduty",
+  "alert_name": "payments-api SLO breach — error rate 12%",
+  "service": "payments-api",
+  "namespace": "payments",
+  "start_time": "2026-03-31T14:32:00Z",
+  "severity": "critical",
+  "labels": {
+    "env": "prod",
+    "team": "payments"
+  },
+  "raw_body": "PagerDuty alert: payments-api SLO breach — error rate 12% (threshold 1%). Service: payments-api. Namespace: payments. Triggered at 2026-03-31T14:32:00Z."
+}
