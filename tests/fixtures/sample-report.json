@@ -1,0 +1,142 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-03-31T14:35:00Z",
+  "context": "prod-cluster",
+  "scope": "namespace: payments",
+  "exit_code": 2,
+  "summary": {
+    "critical": 2,
+    "warn": 1,
+    "ok": 7
+  },
+  "sections": [
+    {
+      "section": "NODES",
+      "findings": [
+        {
+          "severity": "OK",
+          "message": "All 12 nodes Ready — no pressure, cordon, or kubelet warnings",
+          "recommendation": null,
+          "last_event": null
+        }
+      ]
+    },
+    {
+      "section": "PODS",
+      "findings": [
+        {
+          "severity": "CRITICAL",
+          "message": "Pod payments/payments-api-abc-123 container payments-api: CrashLoopBackOff (restarts: 67, last exit: 1)",
+          "recommendation": "kubectl logs payments-api-abc-123 -n payments -c payments-api --previous",
+          "last_event": {
+            "timestamp": "2026-03-31T14:29:45Z",
+            "reason": "BackOff",
+            "message": "Back-off restarting failed container payments-api in pod payments-api-abc-123_payments"
+          }
+        },
+        {
+          "severity": "CRITICAL",
+          "message": "Pod payments/payments-worker-xyz-456 container payments-worker: CrashLoopBackOff (restarts: 54, last exit: 1)",
+          "recommendation": "kubectl logs payments-worker-xyz-456 -n payments -c payments-worker --previous",
+          "last_event": {
+            "timestamp": "2026-03-31T14:31:10Z",
+            "reason": "BackOff",
+            "message": "Back-off restarting failed container payments-worker in pod payments-worker-xyz-456_payments"
+          }
+        }
+      ]
+    },
+    {
+      "section": "PROBES",
+      "findings": [
+        {
+          "severity": "OK",
+          "message": "No probe failures detected",
+          "recommendation": null,
+          "last_event": null
+        }
+      ]
+    },
+    {
+      "section": "WORKLOADS",
+      "findings": [
+        {
+          "severity": "CRITICAL",
+          "message": "Deployment payments/payments-api: 0/3 replicas available",
+          "recommendation": "kubectl describe deploy payments-api -n payments",
+          "last_event": null
+        }
+      ]
+    },
+    {
+      "section": "HTTP",
+      "findings": [
+        {
+          "severity": "CRITICAL",
+          "message": "Service payments/payments-api-svc port 8080: no endpoints — selector may not match pods",
+          "recommendation": "kubectl describe svc payments-api-svc -n payments",
+          "last_event": null
+        }
+      ]
+    },
+    {
+      "section": "gRPC",
+      "findings": [
+        {
+          "severity": "OK",
+          "message": "No gRPC service issues",
+          "recommendation": null,
+          "last_event": null
+        }
+      ]
+    },
+    {
+      "section": "EVENTS",
+      "findings": [
+        {
+          "severity": "WARN",
+          "message": "72 BackOff events in payments namespace",
+          "recommendation": "kubectl get events -n payments --field-selector reason=BackOff",
+          "last_event": {
+            "timestamp": "2026-03-31T14:31:10Z",
+            "reason": "BackOff",
+            "message": "Back-off restarting failed container"
+          }
+        }
+      ]
+    },
+    {
+      "section": "RESOURCES",
+      "findings": [
+        {
+          "severity": "OK",
+          "message": "All 12 nodes within thresholds — max CPU 41%, max memory 58%",
+          "recommendation": null,
+          "last_event": null
+        }
+      ]
+    },
+    {
+      "section": "PVCS",
+      "findings": [
+        {
+          "severity": "OK",
+          "message": "All 8 PVCs Bound",
+          "recommendation": null,
+          "last_event": null
+        }
+      ]
+    },
+    {
+      "section": "HPAS",
+      "findings": [
+        {
+          "severity": "OK",
+          "message": "No HPA issues",
+          "recommendation": null,
+          "last_event": null
+        }
+      ]
+    }
+  ]
+}
