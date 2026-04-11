@@ -1,0 +1,921 @@
+#!/usr/bin/env python3
+"""
+incident-triage — deterministic incident triage CLI tool.
+
+Accepts a sentinel JSON snapshot and an alert descriptor (JSON file or free text),
+correlates the alert symptom to sentinel findings, builds a causation chain, and
+emits a triage JSON report to stdout.
+
+No LLM calls. No external dependencies. stdlib only.
+
+Exit codes:
+  0 — triage complete, valid output
+  1 — namespace unknown; Claude must ask the user
+  2 — sentinel snapshot missing or invalid; Claude must collect cluster state
+  3 — no sentinel findings match the alert; low-confidence output produced
+
+Usage:
+  incident-triage [--sentinel-json <file>] [--alert <text or json file>]
+                  [--namespace <ns>] [--output-format json|text|html]
+"""
+
+import argparse
+import json
+import os
+import re
+import sys
+from datetime import datetime, timezone
+
+SCHEMA_VERSION = "1.0"
+
+# ── Alert type classification ─────────────────────────────────────────────────
+
+ALERT_TYPE_KEYWORDS = {
+    # SLO burn — probe-based (probe endpoint emits workflowStatus metrics)
+    "slo_burn_probe": [
+        "probe", "correctness", "workflowstatus", "pulse", "measured at probe",
+        "fast-burn alert for probe", "probe login",
+    ],
+    # SLO burn — service-level (HTTP error budget)
+    "slo_burn_service": [
+        "burn rate", "availability", "measured at service", "error budget",
+        "slo burn", "fast-burn alert for",
+    ],
+    # Kubernetes app health alerts (kube-prometheus-stack)
+    "kube_app_health": [
+        "kubepod", "kubedeployment", "kubestatefulset", "kubecontainer", "kubehpa",
+        "crashlooping", "notready", "replicasmismatch", "maxedout",
+        "crashloopbackoff", "crash loop",
+    ],
+    # Kubernetes resource pressure
+    "kube_resource": [
+        "kubememory", "kubecpu", "kubenode", "oomkilled", "overcommit",
+        "memory pressure", "cpu pressure",
+    ],
+    # Kubernetes storage
+    "kube_storage": [
+        "kubepersistentvolume", "fillingup", "pvc", "persistent volume",
+    ],
+    # ArgoCD health
+    "argocd_health": [
+        "argoapp", "argoappnothealthy", "outofsync", "argocd",
+    ],
+    # Missing metric / absent metric
+    "missing_metric": [
+        "missing", "absent", "not seen", "no data", "no metric",
+    ],
+    "high_error_rate": [
+        "error rate", "5xx", "http 5", "slo breach", "slo violation",
+        "500", "503", "502", "504",
+    ],
+    "service_unavailable": [
+        "unavailable", "down", "unreachable", "not responding", "connection refused",
+        "no endpoints", "0 replicas",
+    ],
+    "latency_spike": [
+        "latency", "slow", "timeout", "p99", "p95", "response time", "duration",
+    ],
+    "oom": [
+        "oom", "out of memory",
+    ],
+    "crash_loop": [
+        "restart count", "restarts", "above the threshold", "exit code", "restarting",
+    ],
+}
+
+SECTION_PRIORITY = {
+    "slo_burn_probe":      ["PODS", "WORKLOADS", "HPAS", "HTTP", "EVENTS"],
+    "slo_burn_service":    ["HTTP", "PODS", "WORKLOADS", "HPAS", "EVENTS"],
+    "kube_app_health":     ["PODS", "WORKLOADS", "EVENTS", "HPAS"],
+    "kube_resource":       ["NODES", "RESOURCES", "PODS", "EVENTS"],
+    "kube_storage":        ["PVCS", "PODS", "EVENTS"],
+    "argocd_health":       ["WORKLOADS", "PODS", "EVENTS"],
+    "missing_metric":      ["PODS", "WORKLOADS", "PROBES"],
+    "high_error_rate":     ["PODS", "PROBES", "WORKLOADS", "HTTP", "EVENTS"],
+    "service_unavailable": ["PODS", "HTTP", "WORKLOADS", "PROBES", "EVENTS"],
+    "latency_spike":       ["RESOURCES", "HPAS", "PODS", "NODES"],
+    "oom":                 ["PODS", "NODES", "RESOURCES", "EVENTS"],
+    "crash_loop":          ["PODS", "EVENTS", "WORKLOADS", "RESOURCES", "NODES"],
+    "unknown":             ["NODES", "PODS", "PROBES", "WORKLOADS", "HTTP", "gRPC",
+                            "EVENTS", "RESOURCES", "PVCS", "HPAS"],
+}
+
+# Findings that are always noise — never include in a causation chain regardless of alert type.
+# Checked as substring matches against finding messages (case-insensitive).
+KNOWN_NOISY_FINDINGS = [
+    "peep-v1",                          # GCE VM pointer — no K8s pods expected
+    "kube-system/app-kube-controller-manager",  # GKE managed control plane
+    "kube-system/app-kube-scheduler",   # GKE managed control plane
+]
+
+
+# ── Alert parsing ─────────────────────────────────────────────────────────────
+
+def classify_alert_type(text: str) -> str:
+    text_lower = text.lower()
+    # Iterate in definition order — more-specific types are defined first
+    for alert_type, keywords in ALERT_TYPE_KEYWORDS.items():
+        if any(kw in text_lower for kw in keywords):
+            return alert_type
+    return "unknown"
+
+
+def extract_start_time(text: str) -> str | None:
+    # ISO8601
+    m = re.search(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}', text)
+    if m:
+        return m.group(0) + "Z"
+    # HH:MM with "since" or "at"
+    m = re.search(r'(?:since|at)\s+(\d{1,2}:\d{2})', text, re.IGNORECASE)
+    if m:
+        return m.group(1)
+    return None
+
+
+def extract_namespace(text: str) -> str | None:
+    # GCP Cloud Monitoring format: namespace_name=my-namespace (inside {key=value} labels)
+    m = re.search(r'\bnamespace_name[=\s]+([a-z0-9][a-z0-9\-]+)', text, re.IGNORECASE)
+    if m:
+        return m.group(1)
+    # Explicit namespace= or namespace: forms (but not namespace_name — already handled above)
+    m = re.search(r'(?<!\w)namespace[=:\s]+([a-z0-9][a-z0-9\-]+)', text, re.IGNORECASE)
+    if m:
+        return m.group(1)
+    # <word>-ns or <word>-namespace patterns
+    m = re.search(r'\b([a-z0-9][a-z0-9\-]+-(?:ns|namespace))\b', text, re.IGNORECASE)
+    if m:
+        return m.group(1)
+    return None
+
+
+def extract_service(text: str) -> str | None:
+    # GCP Cloud Monitoring format: container_name=my-service
+    m = re.search(r'\bcontainer_name[=\s]+([a-z0-9][a-z0-9\-]+)', text, re.IGNORECASE)
+    if m:
+        return m.group(1)
+    # GCP format: service_name=my-service (system labels block)
+    m = re.search(r'\bservice_name[=\s]+([a-z0-9][a-z0-9\-]+)', text, re.IGNORECASE)
+    if m:
+        return m.group(1)
+    # Word before SLO, error rate, latency, unavailable, down
+    m = re.search(
+        r'([a-z0-9][a-z0-9\-_/\.]+)\s+(?:SLO|error rate|latency|unavailable|down|breach)',
+        text, re.IGNORECASE
+    )
+    if m:
+        return m.group(1).rstrip("/.-")
+    return None
+
+
+def parse_alert_freetext(text: str) -> dict:
+    return {
+        "alert_source": "freetext",
+        "alert_name": text[:120],
+        "service": extract_service(text),
+        "namespace": extract_namespace(text),
+        "start_time": extract_start_time(text),
+        "severity": "critical" if any(w in text.lower() for w in ["critical", "p1", "sev1", "slo breach"]) else "warning",
+        "labels": {},
+        "raw_body": text,
+    }
+
+
+def parse_alert(alert_arg: str) -> dict:
+    """Parse --alert argument: JSON file path, or free text."""
+    # Try as file path
+    if os.path.isfile(alert_arg):
+        try:
+            with open(alert_arg) as f:
+                data = json.load(f)
+            # Normalise to alert descriptor schema
+            return {
+                "alert_source": data.get("alert_source", "unknown"),
+                "alert_name": data.get("alert_name", ""),
+                "service": data.get("service"),
+                "namespace": data.get("namespace"),
+                "emitting_service": data.get("emitting_service"),
+                "dependencies": data.get("dependencies", []),
+                "playbook_url": data.get("playbook_url"),
+                "start_time": data.get("start_time"),
+                "severity": data.get("severity", "warning"),
+                "labels": data.get("labels", {}),
+                "raw_body": data.get("raw_body", ""),
+            }
+        except (json.JSONDecodeError, OSError):
+            pass  # Fall through to free-text parse
+    return parse_alert_freetext(alert_arg)
+
+
+def load_sentinel(path: str) -> dict | None:
+    try:
+        with open(path) as f:
+            data = json.load(f)
+        if data.get("schema_version") != "1.0":
+            print(f"WARNING: sentinel JSON schema version '{data.get('schema_version')}' may differ from expected 1.0", file=sys.stderr)
+        return data
+    except (json.JSONDecodeError, OSError) as e:
+        print(f"ERROR: cannot read sentinel JSON from '{path}': {e}", file=sys.stderr)
+        return None
+
+
+# ── Correlation engine ────────────────────────────────────────────────────────
+
+def _is_noisy(message: str) -> bool:
+    """Return True if this finding matches the known-noisy suppression list."""
+    msg_lower = message.lower()
+    return any(noise.lower() in msg_lower for noise in KNOWN_NOISY_FINDINGS)
+
+
+def _in_causal_scope(msg_lower: str, emitting_service: str, dependencies: list[str],
+                     namespace: str) -> bool:
+    """
+    Return True if a finding message is within the causal scope defined by the
+    alert-service-map (emitting_service + dependencies + namespace).
+    When no emitting_service is known, all findings are in scope.
+    """
+    if not emitting_service:
+        return True
+    targets = [emitting_service.lower()] + [d.lower() for d in (dependencies or [])]
+    if namespace:
+        targets.append(namespace.lower())
+    return any(t in msg_lower for t in targets)
+
+
+def score_findings(sentinel: dict, alert: dict, alert_type: str) -> list[dict]:
+    """
+    Score each sentinel finding as direct / contributing / background.
+
+    Step 0 (alert-service-map scoping): if emitting_service is set, only findings
+    that reference the emitting service, its dependencies, or the alert namespace
+    are eligible for direct/contributing classification. All others are background.
+
+    Known-noisy findings are suppressed entirely (not included in output).
+
+    Primary P1 source: the 'recommendation' field on matched findings —
+    it is already a complete, executable kubectl command. We only fall back
+    to template-filling when recommendation is null.
+    """
+    priority_sections = SECTION_PRIORITY.get(alert_type, SECTION_PRIORITY["unknown"])
+    service = (alert.get("service") or "").lower()
+    namespace = (alert.get("namespace") or "").lower()
+    emitting_service = (alert.get("emitting_service") or "").lower()
+    dependencies = alert.get("dependencies") or []
+
+    matched = []
+    for section_obj in sentinel.get("sections", []):
+        section = section_obj["section"]
+        in_priority = section in priority_sections
+        priority_rank = priority_sections.index(section) if in_priority else 999
+
+        for finding in section_obj.get("findings", []):
+            sev = finding.get("severity", "OK")
+            if sev == "OK":
+                continue
+
+            msg = finding.get("message") or ""
+            msg_lower = msg.lower()
+            rec = finding.get("recommendation")
+
+            # Suppress known-noisy findings unconditionally
+            if _is_noisy(msg):
+                continue
+
+            # Step 0: scope filter — if emitting_service is known, restrict to causal path
+            in_scope = _in_causal_scope(msg_lower, emitting_service, dependencies, namespace)
+
+            # Direct: CRITICAL + in priority section + in causal scope + references service/ns
+            is_direct = (
+                sev == "CRITICAL"
+                and in_priority
+                and in_scope
+                and (
+                    (service and service in msg_lower)
+                    or (namespace and namespace in msg_lower)
+                    or (emitting_service and emitting_service in msg_lower)
+                )
+            )
+
+            # Contributing: CRITICAL or WARN in a priority section and in causal scope
+            is_contributing = (not is_direct) and in_priority and in_scope and sev in ("CRITICAL", "WARN")
+
+            if is_direct:
+                relevance = "direct"
+                reason = f"CRITICAL finding in priority section {section}; message references service/namespace from alert"
+            elif is_contributing:
+                relevance = "contributing"
+                reason = f"{sev} finding in priority section {section} (rank {priority_rank + 1})"
+            elif not in_scope:
+                relevance = "background"
+                reason = f"Outside causal scope (emitting_service={emitting_service or 'unknown'})"
+            else:
+                relevance = "background"
+                reason = f"Section {section} not in priority list for {alert_type}"
+
+            matched.append({
+                "section": section,
+                "severity": sev,
+                "message": msg,
+                "recommendation": rec,
+                "relevance": relevance,
+                "relevance_reason": reason,
+                "priority_rank": priority_rank,
+                "last_event": finding.get("last_event"),
+            })
+
+    # Sort: direct first, then contributing by section priority, then background
+    order = {"direct": 0, "contributing": 1, "background": 2}
+    matched.sort(key=lambda f: (order[f["relevance"]], f["priority_rank"]))
+    return matched
+
+
+# ── Causation chain builder ───────────────────────────────────────────────────
+
+def build_causation_chain(matched: list[dict], alert: dict) -> list[dict]:
+    chain = []
+    direct = [f for f in matched if f["relevance"] == "direct"]
+    contributing = [f for f in matched if f["relevance"] == "contributing"]
+
+    if direct:
+        first = direct[0]
+        chain.append({
+            "level": 1,
+            "label": "root_cause",
+            "description": first["message"],
+            "evidence": f"Sentinel CRITICAL finding in {first['section']}",
+        })
+    else:
+        chain.append({
+            "level": 1,
+            "label": "root_cause",
+            "description": "Unknown — see matched findings for hypotheses",
+            "evidence": "No direct CRITICAL finding matched the alert service/namespace",
+        })
+
+    for i, cf in enumerate(contributing[:2]):  # max 2 intermediate steps
+        chain.append({
+            "level": len(chain) + 1,
+            "label": "intermediate",
+            "description": cf["message"],
+            "evidence": f"Sentinel {cf['severity']} finding in {cf['section']}",
+        })
+
+    chain.append({
+        "level": len(chain) + 1,
+        "label": "symptom",
+        "description": alert.get("alert_name", "Service degradation"),
+        "evidence": f"Alert source: {alert.get('alert_source', 'unknown')}",
+    })
+
+    chain.append({
+        "level": len(chain) + 1,
+        "label": "alert",
+        "description": f"Alert triggered: {alert.get('alert_name', 'unknown')}",
+        "evidence": f"Start time: {alert.get('start_time', 'unknown')}",
+    })
+
+    return chain
+
+
+# ── Fix plan builder ──────────────────────────────────────────────────────────
+
+def extract_resource_from_message(message: str, namespace: str) -> dict:
+    """
+    Extract structured resource names from a sentinel finding message.
+    Used only when recommendation field is null.
+    """
+    result = {"namespace": namespace or "<UNKNOWN>", "pod": None, "deploy": None, "secret": None}
+
+    # Pod: "Pod ns/name" or "pod ns/name"
+    m = re.search(r'[Pp]od\s+[\w-]+/([\w-]+)', message)
+    if m:
+        result["pod"] = m.group(1)
+
+    # Deployment: "Deployment ns/name"
+    m = re.search(r'[Dd]eployment\s+[\w-]+/([\w-]+)', message)
+    if m:
+        result["deploy"] = m.group(1)
+
+    # Secret: "Secret `name`" or "secret 'name'"
+    m = re.search(r"[Ss]ecret\s+[`'\"]?([\w-]+)[`'\"]?", message)
+    if m:
+        result["secret"] = m.group(1)
+
+    return result
+
+
+def _namespace_from_finding(message: str) -> str | None:
+    """Extract namespace from a sentinel finding message of the form 'ns/pod-name'."""
+    m = re.search(r'\b([a-z0-9][a-z0-9\-]+)/[a-z0-9][a-z0-9\-]+', message)
+    return m.group(1) if m else None
+
+
+def build_fix_plan(matched: list[dict], alert: dict) -> dict:
+    """
+    Build P1/P2/P3 fix plan.
+
+    P1: use the 'recommendation' field from the top direct or contributing finding.
+        This is already a complete kubectl command — no regex needed.
+        Fall back to template-fill only when recommendation is null.
+    P2: always kubectl get pods -n <ns> -w + rollout status.
+    P3: recommendation from the second matched finding, or from the top finding if only one.
+    """
+    alert_namespace = alert.get("namespace")
+    direct = [f for f in matched if f["relevance"] == "direct"]
+    contributing = [f for f in matched if f["relevance"] == "contributing"]
+    all_relevant = direct + contributing
+
+    # Prefer namespace from matched findings (sentinel is authoritative for actual resource ns)
+    # Fall back to alert namespace, then UNKNOWN
+    namespace = alert_namespace
+    if all_relevant:
+        found_ns = _namespace_from_finding(all_relevant[0]["message"])
+        if found_ns and not namespace:
+            namespace = found_ns
+    namespace = namespace or "<UNKNOWN>"
+
+    # ── P1: stop the bleeding ─────────────────────────────────────────────────
+    p1_action = "Investigate and resolve the root cause"
+    p1_command = None
+    p1_outcome = "Service restores to healthy state"
+
+    if all_relevant:
+        top = all_relevant[0]
+        msg = top["message"]
+
+        if top["recommendation"]:
+            # Primary: use the sentinel recommendation directly
+            p1_command = top["recommendation"]
+            p1_action = f"Address {top['section']} CRITICAL finding"
+        else:
+            # Fallback: template-fill from message
+            res = extract_resource_from_message(msg, namespace)
+            ns = res["namespace"]
+
+            if "CrashLoopBackOff" in msg and res["pod"]:
+                p1_command = f"kubectl rollout restart deploy/{res['deploy'] or '<UNKNOWN>'} -n {ns}"
+                p1_action = "Restart the crashing deployment"
+            elif "OOMKilled" in msg and res["pod"]:
+                p1_command = f"kubectl set resources deploy/{res['deploy'] or '<UNKNOWN>'} -n {ns} --limits=memory=<NEW_LIMIT>"
+                p1_action = "Increase memory limit on the OOMKilled deployment"
+            elif "0/" in msg and "replicas" in msg:
+                p1_command = f"kubectl describe deploy/{res['deploy'] or '<UNKNOWN>'} -n {ns}"
+                p1_action = "Investigate why deployment has 0 replicas"
+            elif "no endpoints" in msg.lower():
+                p1_command = f"kubectl describe svc/<UNKNOWN> -n {ns}"
+                p1_action = "Diagnose missing endpoints"
+            elif "FailedMount" in msg or "secret" in msg.lower():
+                secret = res["secret"] or "<SECRET_NAME>"
+                p1_command = f"kubectl get secret {secret} -n {ns}"
+                p1_action = f"Verify secret '{secret}' exists"
+            elif "HPA" in msg and "ceiling" in msg.lower():
+                p1_command = f"kubectl get hpa -n {ns}"
+                p1_action = "Check HPA ceiling and current load"
+            else:
+                p1_command = f"kubectl describe pod -l app={alert.get('service', '<SERVICE>')} -n {ns}"
+                p1_action = "Investigate pod state"
+
+    # ── P2: confirm recovery ──────────────────────────────────────────────────
+    ns = namespace
+    service = alert.get("service") or "<SERVICE>"
+    p2_command = f"kubectl get pods -n {ns} -w"
+    p2_action = "Watch pods return to Running state"
+    p2_outcome = "All pods Running with 0 restarts; deployment at desired replicas"
+
+    # ── P3: prevent recurrence ────────────────────────────────────────────────
+    p3_command = None
+    p3_action = "Address root cause to prevent recurrence"
+    p3_outcome = "Issue does not repeat after next deployment"
+
+    # Use recommendation from second finding as P3, or top finding's recommendation if used in P2
+    if len(all_relevant) > 1 and all_relevant[1]["recommendation"]:
+        p3_command = all_relevant[1]["recommendation"]
+        p3_action = f"Resolve {all_relevant[1]['section']} {all_relevant[1]['severity']} finding"
+    elif all_relevant and all_relevant[0]["recommendation"]:
+        # If we used recommendation for P1, P3 gets the same command as context
+        # (P3 is "prevent" not "stop bleeding", so describe/inspect is appropriate)
+        p3_action = "Review workload configuration to prevent recurrence"
+
+    return {
+        "p1": {
+            "action": p1_action,
+            "command": p1_command,
+            "expected_outcome": p1_outcome,
+        },
+        "p2": {
+            "action": p2_action,
+            "command": p2_command,
+            "expected_outcome": p2_outcome,
+        },
+        "p3": {
+            "action": p3_action,
+            "command": p3_command,
+            "expected_outcome": p3_outcome,
+        },
+    }
+
+
+# ── Confidence scoring ────────────────────────────────────────────────────────
+
+def score_confidence(matched: list[dict], alert: dict) -> tuple[str, str]:
+    direct = [f for f in matched if f["relevance"] == "direct"]
+    if not direct:
+        return "low", "No direct CRITICAL finding matched the alert service/namespace"
+
+    # Check timestamp proximity (within 5 minutes of alert start time)
+    alert_start = alert.get("start_time")
+    if alert_start:
+        try:
+            alert_dt = datetime.fromisoformat(alert_start.rstrip("Z")).replace(tzinfo=timezone.utc)
+            for f in direct:
+                le = f.get("last_event")
+                if le and le.get("timestamp"):
+                    try:
+                        ev_dt = datetime.fromisoformat(le["timestamp"].rstrip("Z")).replace(tzinfo=timezone.utc)
+                        delta = abs((ev_dt - alert_dt).total_seconds())
+                        if delta <= 300:
+                            return "high", f"Direct CRITICAL finding with event timestamp within {int(delta)}s of alert start"
+                    except ValueError:
+                        pass
+        except ValueError:
+            pass
+
+    return "medium", "Direct CRITICAL finding matched but no event timestamp within 5 minutes of alert start"
+
+
+# ── Blast radius ──────────────────────────────────────────────────────────────
+
+def assess_blast_radius(matched: list[dict], alert: dict) -> str:
+    direct = [f for f in matched if f["relevance"] == "direct"]
+    contrib = [f for f in matched if f["relevance"] == "contributing"]
+    sections_hit = {f["section"] for f in direct + contrib}
+
+    parts = []
+    ns = alert.get("namespace", "unknown")
+
+    if "WORKLOADS" in sections_hit:
+        parts.append(f"all workloads in namespace {ns} are degraded")
+    if "HTTP" in sections_hit:
+        parts.append("HTTP traffic to affected services is failing")
+    if "NODES" in sections_hit:
+        parts.append("node-level impact may affect other namespaces on the same node")
+    if "RESOURCES" in sections_hit:
+        parts.append("resource pressure may affect other workloads on the same node")
+
+    crits = sum(1 for f in matched if f["severity"] == "CRITICAL")
+    if crits > 2:
+        parts.append(f"{crits} CRITICAL findings suggest broad impact")
+
+    return "; ".join(parts) if parts else f"Impact appears contained to namespace {ns}"
+
+
+# ── Output ────────────────────────────────────────────────────────────────────
+
+def build_output(alert: dict, sentinel: dict, matched: list[dict], alert_type: str) -> dict:
+    chain = build_causation_chain(matched, alert)
+    fix = build_fix_plan(matched, alert)
+    confidence, confidence_reason = score_confidence(matched, alert)
+    blast = assess_blast_radius(matched, alert)
+
+    summary = sentinel.get("summary", {})
+
+    # Strip internal keys before emitting matched_findings
+    emit_matched = [
+        {
+            "section": f["section"],
+            "severity": f["severity"],
+            "message": f["message"],
+            "relevance": f["relevance"],
+            "relevance_reason": f["relevance_reason"],
+        }
+        for f in matched
+        if f["relevance"] != "background"
+    ]
+
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "alert": {
+            "source": alert.get("alert_source", "unknown"),
+            "name": alert.get("alert_name", ""),
+            "service": alert.get("service"),
+            "namespace": alert.get("namespace"),
+            "emitting_service": alert.get("emitting_service"),
+            "dependencies": alert.get("dependencies", []),
+            "playbook_url": alert.get("playbook_url"),
+            "start_time": alert.get("start_time"),
+            "severity": alert.get("severity", "warning"),
+        },
+        "sentinel_summary": {
+            "context": sentinel.get("context", "unknown"),
+            "scope": sentinel.get("scope", "unknown"),
+            "critical": summary.get("critical", 0),
+            "warn": summary.get("warn", 0),
+            "ok": summary.get("ok", 0),
+        },
+        "correlation": {
+            "alert_type": alert_type,
+            "matched_findings": emit_matched,
+            "unmatched_alert": len([f for f in matched if f["relevance"] == "direct"]) == 0,
+        },
+        "causation_chain": chain,
+        "fix_plan": fix,
+        "blast_radius": blast,
+        "confidence": confidence,
+        "confidence_reason": confidence_reason,
+    }
+
+
+def validate_output(data: dict) -> list[str]:
+    errors = []
+    required_top = ["schema_version", "generated_at", "alert", "sentinel_summary",
+                    "correlation", "causation_chain", "fix_plan", "blast_radius",
+                    "confidence", "confidence_reason"]
+    for f in required_top:
+        if f not in data:
+            errors.append(f"Missing required field: {f}")
+
+    chain = data.get("causation_chain", [])
+    if len(chain) < 2:
+        errors.append("causation_chain must have at least 2 entries")
+
+    fix = data.get("fix_plan", {})
+    for step in ("p1", "p2", "p3"):
+        if step not in fix:
+            errors.append(f"fix_plan.{step} missing")
+
+    return errors
+
+
+# ── HTML renderer ─────────────────────────────────────────────────────────────
+
+def render_html(data: dict) -> str:
+    """Return a self-contained HTML page for the triage report.
+
+    Severity colour coding: CRITICAL → red, WARN → amber, OK → green.
+    No external dependencies — all CSS is inlined.
+    """
+    import html as _html
+
+    def e(v) -> str:
+        return _html.escape(str(v)) if v is not None else ""
+
+    def sev_class(s: str) -> str:
+        s = (s or "").upper()
+        if s == "CRITICAL":
+            return "critical"
+        if s in ("WARN", "WARNING"):
+            return "warn"
+        return "ok"
+
+    alert = data.get("alert", {})
+    sentinel = data.get("sentinel_summary", {})
+    corr = data.get("correlation", {})
+    chain = data.get("causation_chain", [])
+    fix = data.get("fix_plan", {})
+    blast = data.get("blast_radius", "")
+    confidence = data.get("confidence", "")
+    confidence_reason = data.get("confidence_reason", "")
+    generated_at = data.get("generated_at", "")
+
+    # Build findings rows
+    finding_rows = ""
+    for f in corr.get("matched_findings", []):
+        sc = sev_class(f.get("severity", ""))
+        finding_rows += (
+            f'<tr class="{sc}">'
+            f'<td>{e(f.get("section"))}</td>'
+            f'<td class="sev">{e(f.get("severity"))}</td>'
+            f'<td>{e(f.get("message"))}</td>'
+            f'<td>{e(f.get("relevance"))}</td>'
+            f'<td>{e(f.get("relevance_reason"))}</td>'
+            f'</tr>\n'
+        )
+    if not finding_rows:
+        finding_rows = '<tr><td colspan="5" class="ok">No matched findings</td></tr>\n'
+
+    # Build causation chain rows
+    chain_rows = ""
+    for step in chain:
+        sc = sev_class(step.get("severity", "ok"))
+        chain_rows += (
+            f'<tr class="{sc}">'
+            f'<td>{e(step.get("level"))}</td>'
+            f'<td>{e(step.get("description"))}</td>'
+            f'<td>{e(step.get("evidence", ""))}</td>'
+            f'</tr>\n'
+        )
+
+    # Fix plan sections
+    def fix_block(label: str, step: dict) -> str:
+        if not step:
+            return ""
+        return (
+            f'<h3>{e(label)}</h3>'
+            f'<p><strong>Action:</strong> {e(step.get("action", ""))}</p>'
+            f'<pre>{e(step.get("command", ""))}</pre>'
+            f'<p><em>Expected: {e(step.get("expected", ""))}</em></p>'
+        )
+
+    p1 = fix.get("p1", {})
+    p2 = fix.get("p2", {})
+    p3 = fix.get("p3", {})
+
+    conf_class = sev_class("CRITICAL" if confidence == "low" else
+                           "WARN" if confidence == "medium" else "ok")
+
+    css = """
+    body { font-family: 'Segoe UI', sans-serif; margin: 2em; background: #f8f9fa; color: #212529; }
+    h1 { border-bottom: 3px solid #0078d4; padding-bottom: 0.3em; }
+    h2 { margin-top: 1.5em; color: #0078d4; }
+    h3 { margin-top: 1em; }
+    table { border-collapse: collapse; width: 100%; margin: 0.5em 0; }
+    th { background: #0078d4; color: white; padding: 0.5em; text-align: left; }
+    td { padding: 0.4em 0.6em; border: 1px solid #dee2e6; vertical-align: top; }
+    tr.critical { background: #fde8e8; }
+    tr.warn { background: #fff3cd; }
+    tr.ok { background: #d4edda; }
+    td.sev { font-weight: bold; }
+    tr.critical td.sev { color: #c00; }
+    tr.warn td.sev { color: #856404; }
+    tr.ok td.sev { color: #155724; }
+    .badge { display: inline-block; padding: 0.2em 0.6em; border-radius: 4px;
+             font-weight: bold; font-size: 0.85em; }
+    .badge.critical { background: #f8d7da; color: #721c24; }
+    .badge.warn { background: #fff3cd; color: #856404; }
+    .badge.ok { background: #d4edda; color: #155724; }
+    pre { background: #212529; color: #f8f9fa; padding: 0.8em 1em; border-radius: 4px;
+          overflow-x: auto; font-size: 0.9em; }
+    .meta { color: #6c757d; font-size: 0.9em; }
+    """
+
+    html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Incident Triage — {e(alert.get('name', 'unknown'))}</title>
+<style>{css}</style>
+</head>
+<body>
+<h1>Incident Triage</h1>
+<p class="meta">Generated: {e(generated_at)} &nbsp;|&nbsp; Schema: {e(data.get('schema_version', ''))}</p>
+
+<h2>Alert</h2>
+<table>
+<tr><th>Field</th><th>Value</th></tr>
+<tr><td>Name</td><td>{e(alert.get('name'))}</td></tr>
+<tr><td>Service</td><td>{e(alert.get('service'))}</td></tr>
+<tr><td>Namespace</td><td>{e(alert.get('namespace'))}</td></tr>
+<tr><td>Severity</td><td>{e(alert.get('severity'))}</td></tr>
+<tr><td>Start time</td><td>{e(alert.get('start_time'))}</td></tr>
+<tr><td>Playbook</td><td>{e(alert.get('playbook_url') or 'None on record')}</td></tr>
+</table>
+
+<h2>Sentinel Summary</h2>
+<table>
+<tr><th>Context</th><th>Scope</th><th>Critical</th><th>Warn</th><th>OK</th></tr>
+<tr>
+  <td>{e(sentinel.get('context'))}</td>
+  <td>{e(sentinel.get('scope'))}</td>
+  <td class="sev" style="color:#c00">{e(sentinel.get('critical', 0))}</td>
+  <td class="sev" style="color:#856404">{e(sentinel.get('warn', 0))}</td>
+  <td class="sev" style="color:#155724">{e(sentinel.get('ok', 0))}</td>
+</tr>
+</table>
+
+<h2>Confidence: <span class="badge {conf_class}">{e(confidence.upper())}</span></h2>
+<p>{e(confidence_reason)}</p>
+
+<h2>Matched Findings</h2>
+<table>
+<tr><th>Section</th><th>Severity</th><th>Message</th><th>Relevance</th><th>Reason</th></tr>
+{finding_rows}
+</table>
+
+<h2>Causation Chain</h2>
+<table>
+<tr><th>Level</th><th>Description</th><th>Evidence</th></tr>
+{chain_rows}
+</table>
+<p><strong>Blast radius:</strong> {e(blast)}</p>
+
+<h2>Fix Plan</h2>
+<p><strong>Playbook:</strong> {e(alert.get('playbook_url') or 'None on record')}</p>
+{fix_block("P1 — Stop bleeding", p1)}
+{fix_block("P2 — Confirm recovery", p2)}
+{fix_block("P3 — Prevent recurrence", p3)}
+
+</body>
+</html>
+"""
+    return html
+
+
+# ── Main ──────────────────────────────────────────────────────────────────────
+
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="incident-triage — deterministic Kubernetes incident triage"
+    )
+    parser.add_argument("--sentinel-json", metavar="FILE",
+                        help="Path to sentinel JSON snapshot (kubectl-sentinel --json output)")
+    parser.add_argument("--alert", metavar="TEXT_OR_FILE",
+                        help="Alert description: free text or path to alert descriptor JSON")
+    parser.add_argument("--namespace", metavar="NS",
+                        help="Override namespace (used when not determinable from alert)")
+    parser.add_argument("--output-format", choices=["json", "text", "html"], default="json",
+                        help="Output format (default: json)")
+    args = parser.parse_args()
+
+    has_sentinel = bool(args.sentinel_json)
+    has_alert = bool(args.alert)
+
+    # Behaviour matrix
+    if not has_sentinel and not has_alert:
+        parser.print_help(sys.stderr)
+        return 1
+
+    alert: dict | None = None
+    sentinel: dict | None = None
+
+    if has_alert:
+        alert = parse_alert(args.alert)
+        if args.namespace:
+            alert["namespace"] = args.namespace
+
+    if has_sentinel:
+        sentinel = load_sentinel(args.sentinel_json)
+        if sentinel is None:
+            return 2
+
+    # Missing sentinel — emit alert parse result and exit 2 (Claude must collect state)
+    if has_alert and not has_sentinel:
+        partial = {
+            "schema_version": SCHEMA_VERSION,
+            "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "alert": {
+                "source": alert.get("alert_source", "unknown"),
+                "name": alert.get("alert_name", ""),
+                "service": alert.get("service"),
+                "namespace": alert.get("namespace"),
+                "start_time": alert.get("start_time"),
+                "severity": alert.get("severity", "warning"),
+            },
+            "sentinel_summary": None,
+            "error": "sentinel snapshot missing — Claude must collect cluster state with /sentinel",
+        }
+        print(json.dumps(partial, indent=2, ensure_ascii=False))
+        return 2
+
+    # Missing alert — emit sentinel summary and exit 2
+    if has_sentinel and not has_alert:
+        partial = {
+            "schema_version": SCHEMA_VERSION,
+            "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "alert": None,
+            "sentinel_summary": {
+                "context": sentinel.get("context", "unknown"),
+                "scope": sentinel.get("scope", "unknown"),
+                "critical": sentinel.get("summary", {}).get("critical", 0),
+                "warn": sentinel.get("summary", {}).get("warn", 0),
+                "ok": sentinel.get("summary", {}).get("ok", 0),
+            },
+            "error": "alert descriptor missing — provide --alert to complete triage",
+        }
+        print(json.dumps(partial, indent=2, ensure_ascii=False))
+        return 2
+
+    # Both provided — full triage
+    alert_type = classify_alert_type(
+        (alert.get("alert_name") or "") + " " + (alert.get("raw_body") or "")
+    )
+
+    # Namespace fallback
+    if not alert.get("namespace"):
+        alert["namespace"] = None
+        print("WARNING: namespace not determinable from alert — Claude should ask the user",
+              file=sys.stderr)
+        # Continue with null namespace; confidence will be low
+
+    matched = score_findings(sentinel, alert, alert_type)
+
+    no_direct = not any(f["relevance"] == "direct" for f in matched)
+    exit_code = 3 if no_direct else 0
+
+    output = build_output(alert, sentinel, matched, alert_type)
+
+    # Validate before emit
+    errors = validate_output(output)
+    if errors:
+        for e in errors:
+            print(f"WARNING: {e}", file=sys.stderr)
+        output["confidence"] = "low"
+
+    if args.output_format == "html":
+        print(render_html(output))
+    else:
+        print(json.dumps(output, indent=2, ensure_ascii=False))
+    return exit_code
+
+
+if __name__ == "__main__":
+    sys.exit(main())
