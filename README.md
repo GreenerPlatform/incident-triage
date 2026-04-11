@@ -148,13 +148,11 @@ Its `recommendation` field is used directly as the P1 fix command in the triage 
 
 ## Claude Code skill
 
-This repo ships a `/triage` skill for [Claude Code](https://claude.ai/code). Clone the
-repo, open it in Claude Code, and `/triage` is available immediately:
+The skill definition lives at [`skills/SKILL.md`](skills/SKILL.md). To use `/triage`
+in any Claude Code project, copy it to `.claude/commands/triage.md`:
 
 ```bash
-git clone https://github.com/GreenerPlatform/incident-triage
-cd incident-triage
-# open in Claude Code / VS Code with Claude extension
+cp skills/SKILL.md /path/to/your-project/.claude/commands/triage.md
 ```
 
 ```
@@ -164,8 +162,7 @@ cd incident-triage
 ```
 
 The skill runs sentinel, feeds the output to the CLI, then adds PagerDuty incident history,
-root cause classification, and an execute prompt with the P1 command. See
-[.claude/commands/triage.md](.claude/commands/triage.md) for the full skill definition.
+root cause classification, and an execute prompt with the P1 command.
 
 ## The dual-layer pattern
 
