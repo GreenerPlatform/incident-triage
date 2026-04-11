@@ -26,6 +26,7 @@ import re
 import sys
 from datetime import datetime, timezone
 
+VERSION = "1.1.0"
 SCHEMA_VERSION = "1.0"
 
 # ── Alert type classification ─────────────────────────────────────────────────
@@ -253,7 +254,7 @@ def score_findings(sentinel: dict, alert: dict, alert_type: str) -> list[dict]:
 
     Primary P1 source: the 'recommendation' field on matched findings —
     it is already a complete, executable kubectl command. We only fall back
-    to a describe command when recommendation is null.
+    to template-filling when recommendation is null.
     """
     priority_sections = SECTION_PRIORITY.get(alert_type, SECTION_PRIORITY["unknown"])
     service = (alert.get("service") or "").lower()
@@ -461,11 +462,8 @@ def build_fix_plan(matched: list[dict], alert: dict) -> dict:
 
     P1: use the 'recommendation' field from the top direct or contributing finding.
         This is already a complete kubectl command — no regex needed.
-        Fall back to kubectl describe when recommendation is null; the CLI lacks
-        the describe output, log content, and memory trends needed to classify
-        the root cause (OOM LIMIT TOO LOW vs POSSIBLE LEAK, CrashLoop APP ERROR
-        vs SIGTERM, etc.). Classification belongs in the skill layer.
-    P2: always kubectl get pods -n <ns> -w.
+        Fall back to template-fill only when recommendation is null.
+    P2: always kubectl get pods -n <ns> -w + rollout status.
     P3: recommendation from the second matched finding, or from the top finding if only one.
     """
     alert_namespace = alert.get("namespace")
@@ -529,12 +527,13 @@ def build_fix_plan(matched: list[dict], alert: dict) -> dict:
     p3_action = "Address root cause to prevent recurrence"
     p3_outcome = "Issue does not repeat after next deployment"
 
-    # Use recommendation from second finding as P3, or top finding's recommendation if used in P1
+    # Use recommendation from second finding as P3, or top finding's recommendation if used in P2
     if len(all_relevant) > 1 and all_relevant[1]["recommendation"]:
         p3_command = all_relevant[1]["recommendation"]
         p3_action = f"Resolve {all_relevant[1]['section']} {all_relevant[1]['severity']} finding"
     elif all_relevant and all_relevant[0]["recommendation"]:
-        # P1 used the recommendation; P3 is "prevent" not "stop bleeding"
+        # If we used recommendation for P1, P3 gets the same command as context
+        # (P3 is "prevent" not "stop bleeding", so describe/inspect is appropriate)
         p3_action = "Review workload configuration to prevent recurrence"
 
     return {
@@ -756,7 +755,7 @@ def render_html(data: dict) -> str:
             f'<h3>{e(label)}</h3>'
             f'<p><strong>Action:</strong> {e(step.get("action", ""))}</p>'
             f'<pre>{e(step.get("command", ""))}</pre>'
-            f'<p><em>Expected: {e(step.get("expected_outcome", ""))}</em></p>'
+            f'<p><em>Expected: {e(step.get("expected", ""))}</em></p>'
         )
 
     p1 = fix.get("p1", {})
@@ -859,6 +858,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description="incident-triage — deterministic Kubernetes incident triage"
     )
+    parser.add_argument("--version", action="version", version=f"incident-triage {VERSION}")
     parser.add_argument("--sentinel-json", metavar="FILE",
                         help="Path to sentinel JSON snapshot (kubectl-sentinel --json output)")
     parser.add_argument("--alert", metavar="TEXT_OR_FILE",
@@ -904,7 +904,7 @@ def main() -> int:
                 "severity": alert.get("severity", "warning"),
             },
             "sentinel_summary": None,
-            "error": "sentinel snapshot missing — Claude must collect cluster state with kubectl-sentinel",
+            "error": "sentinel snapshot missing — Claude must collect cluster state with /sentinel",
         }
         print(json.dumps(partial, indent=2, ensure_ascii=False))
         return 2
@@ -949,8 +949,8 @@ def main() -> int:
     # Validate before emit
     errors = validate_output(output)
     if errors:
-        for err in errors:
-            print(f"WARNING: {err}", file=sys.stderr)
+        for e in errors:
+            print(f"WARNING: {e}", file=sys.stderr)
         output["confidence"] = "low"
 
     if args.output_format == "html":

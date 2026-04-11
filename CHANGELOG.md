@@ -7,6 +7,18 @@ Versioning: [Semantic Versioning](https://semver.org/)
 
 ---
 
+## [1.1.0] — 2026-04-11
+
+### Added
+- `extract_signals()` — parses structured signals from sentinel finding messages: `restart_count`, `exit_code` (inferred as 137 for OOMKill), `replicas_ready/desired`, `last_event_age_seconds`; emitted in matched finding output for skill-layer classification
+- `--version` flag — prints `incident-triage 1.1.0` and exits
+
+### Changed
+- P1 fix plan: when sentinel `recommendation` field is null, emit `kubectl describe pod/<name>` (or `deploy/<name>`) instead of template-filling a guessed command — gather evidence before prescribing a fix
+- `VERSION` constant added to script (`VERSION = "1.1.0"`)
+
+---
+
 ## [1.0.0] — 2026-04-11
 
 Initial public release.
