@@ -128,6 +128,45 @@ payments) and a matching PagerDuty alert descriptor.
 
 See [schema.md](schema.md) for the full triage output JSON schema.
 
+## Getting cluster state
+
+`incident-triage` reads a sentinel JSON snapshot. Collect one with
+[kubectl-sentinel](https://github.com/GreenerPlatform/kubectl-sentinel):
+
+```bash
+# Install kubectl-sentinel (requires kubectl + jq)
+git clone https://github.com/GreenerPlatform/kubectl-sentinel
+cd kubectl-sentinel && bash install.sh ~/bin && cd -
+
+# Collect cluster state and triage in one pipeline
+kubectl sentinel --json -n payments > snap.json
+incident-triage --sentinel-json snap.json --alert "payments API 503 since 14:30"
+```
+
+kubectl-sentinel runs 10 health checks in under 10 seconds and emits structured JSON.
+Its `recommendation` field is used directly as the P1 fix command in the triage output.
+
+## Claude Code skill
+
+This repo ships a `/triage` skill for [Claude Code](https://claude.ai/code). Clone the
+repo, open it in Claude Code, and `/triage` is available immediately:
+
+```bash
+git clone https://github.com/GreenerPlatform/incident-triage
+cd incident-triage
+# open in Claude Code / VS Code with Claude extension
+```
+
+```
+/triage payments API returning 503 since 14:30
+/triage --pd-incident Q1W2E3R
+/triage --sentinel-json snap.json --alert "payments API 503"
+```
+
+The skill runs sentinel, feeds the output to the CLI, then adds PagerDuty incident history,
+root cause classification, and an execute prompt with the P1 command. See
+[.claude/commands/triage.md](.claude/commands/triage.md) for the full skill definition.
+
 ## The dual-layer pattern
 
 incident-triage is the deterministic layer: alert → cluster state → causation chain in under
@@ -138,7 +177,7 @@ output to this tool, then adds context from PagerDuty history, related incidents
 
 ## Contributing
 
-Issues and pull requests welcome.
+Issues and pull requests welcome. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 Design principle: classify before you recommend. OOMKill does not always mean "raise the limit" —
 the root cause (limit too low vs. memory leak vs. input spike) determines the correct fix.
