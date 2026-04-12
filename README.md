@@ -18,7 +18,7 @@ When PagerDuty fires, you get the alert — not the cause. You open the dashboar
 then kubectl, then Slack history, then runbooks. By the time you have a picture,
 20 minutes are gone.
 
-> **Alert in. Causation chain out. P1 command, ready to run.**
+> **Alert in. Causation chain out. Fix command, ready to run.**
 
 ```bash
 incident-triage \
@@ -122,7 +122,7 @@ Free text is also accepted — service name, namespace, and timestamps are extra
 2. **Prioritise** — sentinel sections are ranked by relevance to the alert type
 3. **Score** — each finding is classified as `direct`, `contributing`, or `background`
 4. **Chain** — the top direct finding becomes the root cause; contributing findings become intermediate steps
-5. **Plan** — P1 command comes from the sentinel `recommendation` field (a complete kubectl command)
+5. **Plan** — the fix command comes from the sentinel `recommendation` field (a complete kubectl command)
 
 No LLM calls. No network access. Deterministic output for the same inputs.
 
@@ -158,7 +158,7 @@ incident-triage --sentinel-json snap.json --alert "payments API 503 since 14:30"
 ```
 
 kubectl-sentinel runs 10 health checks in under 10 seconds and emits structured JSON.
-Its `recommendation` field is used directly as the P1 fix command in the triage output.
+Its `recommendation` field is used directly as the fix command in the triage output.
 
 ## Claude Code skill
 
@@ -176,7 +176,7 @@ cp skills/SKILL.md /path/to/your-project/.claude/commands/triage.md
 ```
 
 The skill runs sentinel, feeds the output to the CLI, then adds PagerDuty incident history,
-root cause classification, and an execute prompt with the P1 command.
+root cause classification, and an execute prompt with the fix command.
 
 ## The dual-layer pattern
 
