@@ -1,3 +1,17 @@
+<div align="center">
+  <img src="docs/banner.svg" alt="incident-triage" width="100%"/>
+</div>
+
+<div align="center">
+  <img src="https://img.shields.io/badge/python-3.10+-3776AB?style=flat-square&logo=python&logoColor=white" alt="python"/>
+  <img src="https://img.shields.io/badge/stdlib%20only-no%20pip-lightgrey?style=flat-square" alt="stdlib only"/>
+  <img src="https://img.shields.io/badge/output-JSON%20%7C%20HTML-lightgrey?style=flat-square" alt="output formats"/>
+  <img src="https://img.shields.io/badge/CI%20safe-exit%200--3-brightgreen?style=flat-square" alt="exit codes"/>
+  <img src="https://img.shields.io/github/license/GreenerPlatform/incident-triage?style=flat-square" alt="license"/>
+</div>
+
+---
+
 ## Why Incident Triage Takes Too Long
 
 When PagerDuty fires, you get the alert — not the cause. You open the dashboard,
