@@ -7,6 +7,19 @@ Versioning: [Semantic Versioning](https://semver.org/)
 
 ---
 
+## [1.1.1] — 2026-07-02
+
+### Fixed
+- HTML report (`--output-format html`) now shows the `Expected` outcome for each P1/P2/P3 fix step — it was reading the wrong key (`expected` instead of `expected_outcome`) and always rendering blank
+
+### Changed
+- `--output-format` now accepts only its documented values (`json`, `html`); the undocumented `text` value previously fell through to JSON silently
+
+### Added
+- GitHub Actions CI: byte-compile, `--version`, and the fixtures smoke test (JSON validity + HTML render) on every push and pull request
+
+---
+
 ## [1.1.0] — 2026-04-11
 
 ### Added

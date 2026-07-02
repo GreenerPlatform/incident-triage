@@ -3,6 +3,7 @@
 </div>
 
 <div align="center">
+  <img src="https://img.shields.io/github/actions/workflow/status/GreenerPlatform/incident-triage/ci.yml?style=flat-square&label=CI" alt="CI"/>
   <img src="https://img.shields.io/badge/python-3.10+-3776AB?style=flat-square&logo=python&logoColor=white" alt="python"/>
   <img src="https://img.shields.io/badge/stdlib%20only-no%20pip-lightgrey?style=flat-square" alt="stdlib only"/>
   <img src="https://img.shields.io/badge/output-JSON%20%7C%20HTML-lightgrey?style=flat-square" alt="output formats"/>
