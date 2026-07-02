@@ -7,6 +7,17 @@ Versioning: [Semantic Versioning](https://semver.org/)
 
 ---
 
+## [1.2.0] — 2026-07-03
+
+### Added
+- **`what_changed` correlation** — a new top-level output section answering *"what changed right before the alert?"* Purely deterministic: it correlates sentinel event timestamps against the alert start time (root causes precede symptoms) and classifies the likely trigger by change type — config (Secret/ConfigMap), image/registry, deployment rollout (ProgressDeadlineExceeded), resource/OOM, scheduling/capacity, quota, or probe/health. No external lookups, no model; fully reproducible for a given (snapshot, alert) pair. Rendered in both JSON and HTML.
+- Triage now scores findings from the five new sentinel sections (**JOBS, PDBS, QUOTAS, DNS, CERTS**), wired into the per-alert-type section-priority map.
+
+### Changed
+- `schema_version` bumped to **1.1** (additive: new `what_changed` object). All existing fields unchanged.
+
+---
+
 ## [1.1.1] — 2026-07-02
 
 ### Fixed

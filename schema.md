@@ -1,4 +1,4 @@
-# Output Schema — incident-triage v1.0
+# Output Schema — incident-triage v1.1
 
 This file defines the JSON interface between the `incident-triage` CLI tool and any
 consuming layer (Claude Code skill, CI pipeline, custom tooling).
@@ -48,7 +48,7 @@ See [GreenerPlatform/kubectl-sentinel](https://github.com/GreenerPlatform/kubect
 
 ```json
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "generated_at": "<ISO8601>",
   "alert": {
     "source": "pagerduty | alertmanager | freetext",
@@ -72,7 +72,7 @@ See [GreenerPlatform/kubectl-sentinel](https://github.com/GreenerPlatform/kubect
     "alert_type": "slo_burn_service | high_error_rate | service_unavailable | crash_loop | oom | latency_spike | kube_app_health | kube_resource | kube_storage | missing_metric | argocd_health | unknown",
     "matched_findings": [
       {
-        "section": "PODS | WORKLOADS | HTTP | EVENTS | ...",
+        "section": "PODS | WORKLOADS | HTTP | EVENTS | JOBS | PDBS | QUOTAS | DNS | CERTS | ...",
         "severity": "CRITICAL | WARN",
         "message": "<sentinel finding message>",
         "relevance": "direct | contributing",
@@ -80,6 +80,20 @@ See [GreenerPlatform/kubectl-sentinel](https://github.com/GreenerPlatform/kubect
       }
     ],
     "unmatched_alert": false
+  },
+  "what_changed": {
+    "detected": true,
+    "summary": "<one-line likely trigger + how long before the alert>",
+    "trigger": {
+      "section": "PODS | WORKLOADS | EVENTS | ...",
+      "message": "<sentinel finding message>",
+      "reason": "<event reason, e.g. BackOff, FailedMount>",
+      "change_type": "config change | image/registry change | deployment rollout | resource change | capacity/scheduling change | quota change | health/rollout change | recent change surfaced by <SECTION>",
+      "event_time": "<ISO8601>",
+      "seconds_before_alert": 135
+    },
+    "signals": [ "<up to 5 change candidates, earliest first, same shape as trigger>" ],
+    "method": "temporal correlation of sentinel event timestamps vs alert start time (deterministic; no external lookups)"
   },
   "causation_chain": [
     {

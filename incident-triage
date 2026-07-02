@@ -26,8 +26,8 @@ import re
 import sys
 from datetime import datetime, timezone
 
-VERSION = "1.1.1"
-SCHEMA_VERSION = "1.0"
+VERSION = "1.2.0"
+SCHEMA_VERSION = "1.1"
 
 # ── Alert type classification ─────────────────────────────────────────────────
 
@@ -85,20 +85,21 @@ ALERT_TYPE_KEYWORDS = {
 }
 
 SECTION_PRIORITY = {
-    "slo_burn_probe":      ["PODS", "WORKLOADS", "HPAS", "HTTP", "EVENTS"],
-    "slo_burn_service":    ["HTTP", "PODS", "WORKLOADS", "HPAS", "EVENTS"],
-    "kube_app_health":     ["PODS", "WORKLOADS", "EVENTS", "HPAS"],
-    "kube_resource":       ["NODES", "RESOURCES", "PODS", "EVENTS"],
-    "kube_storage":        ["PVCS", "PODS", "EVENTS"],
-    "argocd_health":       ["WORKLOADS", "PODS", "EVENTS"],
-    "missing_metric":      ["PODS", "WORKLOADS", "PROBES"],
-    "high_error_rate":     ["PODS", "PROBES", "WORKLOADS", "HTTP", "EVENTS"],
-    "service_unavailable": ["PODS", "HTTP", "WORKLOADS", "PROBES", "EVENTS"],
-    "latency_spike":       ["RESOURCES", "HPAS", "PODS", "NODES"],
-    "oom":                 ["PODS", "NODES", "RESOURCES", "EVENTS"],
-    "crash_loop":          ["PODS", "EVENTS", "WORKLOADS", "RESOURCES", "NODES"],
+    "slo_burn_probe":      ["PODS", "WORKLOADS", "HPAS", "HTTP", "EVENTS", "DNS"],
+    "slo_burn_service":    ["HTTP", "PODS", "WORKLOADS", "HPAS", "EVENTS", "DNS", "CERTS"],
+    "kube_app_health":     ["PODS", "WORKLOADS", "EVENTS", "HPAS", "JOBS", "PDBS"],
+    "kube_resource":       ["NODES", "RESOURCES", "PODS", "EVENTS", "QUOTAS"],
+    "kube_storage":        ["PVCS", "PODS", "EVENTS", "QUOTAS"],
+    "argocd_health":       ["WORKLOADS", "PODS", "EVENTS", "JOBS"],
+    "missing_metric":      ["PODS", "WORKLOADS", "PROBES", "DNS"],
+    "high_error_rate":     ["PODS", "PROBES", "WORKLOADS", "HTTP", "EVENTS", "DNS", "CERTS"],
+    "service_unavailable": ["PODS", "HTTP", "WORKLOADS", "PROBES", "EVENTS", "DNS", "CERTS"],
+    "latency_spike":       ["RESOURCES", "HPAS", "PODS", "NODES", "DNS"],
+    "oom":                 ["PODS", "NODES", "RESOURCES", "EVENTS", "QUOTAS"],
+    "crash_loop":          ["PODS", "EVENTS", "WORKLOADS", "RESOURCES", "NODES", "JOBS"],
     "unknown":             ["NODES", "PODS", "PROBES", "WORKLOADS", "HTTP", "gRPC",
-                            "EVENTS", "RESOURCES", "PVCS", "HPAS"],
+                            "EVENTS", "RESOURCES", "PVCS", "HPAS",
+                            "JOBS", "PDBS", "QUOTAS", "DNS", "CERTS"],
 }
 
 # Findings that are always noise — never include in a causation chain regardless of alert type.
@@ -609,6 +610,159 @@ def assess_blast_radius(matched: list[dict], alert: dict) -> str:
     return "; ".join(parts) if parts else f"Impact appears contained to namespace {ns}"
 
 
+# ── "What changed" correlation ────────────────────────────────────────────────
+
+def _parse_ts(ts: str | None) -> datetime | None:
+    if not ts:
+        return None
+    try:
+        return datetime.fromisoformat(ts.rstrip("Z")).replace(tzinfo=timezone.utc)
+    except (ValueError, AttributeError):
+        return None
+
+
+def _classify_change(section: str, reason: str, message: str) -> str:
+    """
+    Map a finding's event reason/message to the *kind of change* that most likely
+    preceded the incident. Deterministic substring rules — no inference beyond the text.
+    """
+    m = (message or "").lower()
+    r = (reason or "").lower()
+    if "failedmount" in r or "failedmount" in m or ("secret" in m and ("not found" in m or "mount" in m)) \
+            or ("configmap" in m and ("not found" in m or "mount" in m)):
+        return "config change — a Secret/ConfigMap the workload needs is missing or was changed"
+    if "errimage" in r or "imagepull" in m or "errimage" in m or ("image" in m and "pull" in m):
+        return "image/registry change — the image can't be pulled (bad tag, deleted image, or registry auth)"
+    if "progressdeadline" in r or "progressdeadline" in m or ("rollout" in m and "progress" in m):
+        return "deployment rollout — a new revision is stalled (ProgressDeadlineExceeded)"
+    if "oomkilled" in m or "oomkilling" in r or "out of memory" in m:
+        return "resource change — OOMKilled (memory limit too low, or a new leak)"
+    if "crashloop" in m or ("exit" in m and ("code" in m or re.search(r"exit\s+\d", m))):
+        return "deploy/rollout change — a new build is crashing on startup"
+    if "failedscheduling" in r or "unschedulable" in m or ("pending" in m and "schedul" in m):
+        return "capacity/scheduling change — pods can't be scheduled (resources or constraints)"
+    if "quota" in m or "exceeded quota" in m:
+        return "quota change — a ResourceQuota is blocking new objects"
+    if "readiness" in m or "liveness" in m or "unhealthy" in r:
+        return "health/rollout change — probes started failing"
+    return f"recent change surfaced by {section}"
+
+
+def analyze_what_changed(matched: list[dict], alert: dict, sentinel: dict) -> dict:
+    """
+    Deterministic "what changed right before the alert".
+
+    Uses only the snapshot's event timestamps vs the alert start time — no external
+    lookups, no model. Root causes precede symptoms, so the earliest change event in
+    the incident window is surfaced as the likely trigger. Fully reproducible for a
+    given (snapshot, alert) pair.
+    """
+    method = ("temporal correlation of sentinel event timestamps vs alert start time "
+              "(deterministic; no external lookups)")
+    alert_dt = _parse_ts(alert.get("start_time"))
+
+    seen: set = set()
+    candidates: list[dict] = []
+
+    def add(section: str, message: str, last_event: dict | None) -> None:
+        le = last_event or {}
+        ts = le.get("timestamp")
+        dt = _parse_ts(ts)
+        if not dt:
+            return
+        key = (section, message, ts)
+        if key in seen:
+            return
+        seen.add(key)
+        secs_before = int((alert_dt - dt).total_seconds()) if alert_dt else None
+        candidates.append({
+            "section": section,
+            "message": message,
+            "reason": le.get("reason", ""),
+            "change_type": _classify_change(section, le.get("reason", ""), message),
+            "event_time": ts,
+            "seconds_before_alert": secs_before,
+            "_dt": dt,
+        })
+
+    # Prefer findings already correlated to the alert, then scan the whole snapshot.
+    for f in matched:
+        if f.get("relevance") in ("direct", "contributing"):
+            add(f.get("section", ""), f.get("message", ""), f.get("last_event"))
+    for sec in sentinel.get("sections", []):
+        for f in sec.get("findings", []):
+            add(sec.get("section", ""), f.get("message", ""), f.get("last_event"))
+
+    if not candidates:
+        # No event timestamps in the snapshot (common on freshly-collected snapshots) —
+        # fall back to inferring the likely change from the top correlated finding.
+        # Still deterministic; just a weaker signal (no "how long before" available).
+        ranked = ([f for f in matched if f.get("relevance") == "direct"]
+                  + [f for f in matched if f.get("relevance") == "contributing"])
+        if not ranked:
+            return {
+                "detected": False,
+                "summary": "No change signals in the snapshot to correlate with the alert.",
+                "trigger": None,
+                "signals": [],
+                "method": method,
+            }
+
+        def _infer(f: dict) -> dict:
+            le = f.get("last_event") or {}
+            return {
+                "section": f.get("section", ""),
+                "message": f.get("message", ""),
+                "reason": le.get("reason", ""),
+                "change_type": _classify_change(f.get("section", ""), le.get("reason", ""), f.get("message", "")),
+                "event_time": None,
+                "seconds_before_alert": None,
+            }
+
+        trig = _infer(ranked[0])
+        res_hint = trig["message"].split(" — ")[0].split(":")[0].strip() or trig["section"]
+        return {
+            "detected": True,
+            "summary": (f"Likely trigger: {trig['change_type']} ({res_hint}). "
+                        "No event timestamps in the snapshot — inferred from the top correlated finding."),
+            "trigger": trig,
+            "signals": [_infer(f) for f in ranked[:5]],
+            "method": "inferred from the top correlated sentinel finding (no event timestamps available to correlate temporally)",
+        }
+
+    # Earliest event first (root cause precedes symptom); deterministic tie-break.
+    candidates.sort(key=lambda c: (c["_dt"], c["section"], c["message"]))
+
+    # If the alert has a start time, prefer changes at/just before it (tolerate 60s clock skew).
+    pre = [c for c in candidates if c["seconds_before_alert"] is None or c["seconds_before_alert"] >= -60]
+    pool = pre if pre else candidates
+    trigger = pool[0]
+
+    def _fmt(secs: int | None) -> str:
+        if secs is None:
+            return "at an unknown offset from the alert"
+        if secs < 0:
+            return f"{abs(secs) // 60} min after the alert"
+        if secs >= 60:
+            return f"{secs // 60} min before the alert"
+        return f"{secs}s before the alert"
+
+    res_hint = trigger["message"].split(" — ")[0].split(":")[0].strip() or trigger["section"]
+    summary = f"Likely trigger: {trigger['change_type']}; first seen {_fmt(trigger['seconds_before_alert'])} ({res_hint})."
+
+    def _public(c: dict) -> dict:
+        return {k: c[k] for k in
+                ("section", "message", "reason", "change_type", "event_time", "seconds_before_alert")}
+
+    return {
+        "detected": True,
+        "summary": summary,
+        "trigger": _public(trigger),
+        "signals": [_public(c) for c in pool[:5]],
+        "method": method,
+    }
+
+
 # ── Output ────────────────────────────────────────────────────────────────────
 
 def build_output(alert: dict, sentinel: dict, matched: list[dict], alert_type: str) -> dict:
@@ -616,6 +770,7 @@ def build_output(alert: dict, sentinel: dict, matched: list[dict], alert_type: s
     fix = build_fix_plan(matched, alert)
     confidence, confidence_reason = score_confidence(matched, alert)
     blast = assess_blast_radius(matched, alert)
+    what_changed = analyze_what_changed(matched, alert, sentinel)
 
     summary = sentinel.get("summary", {})
 
@@ -659,6 +814,7 @@ def build_output(alert: dict, sentinel: dict, matched: list[dict], alert_type: s
             "matched_findings": emit_matched,
             "unmatched_alert": len([f for f in matched if f["relevance"] == "direct"]) == 0,
         },
+        "what_changed": what_changed,
         "causation_chain": chain,
         "fix_plan": fix,
         "blast_radius": blast,
@@ -670,8 +826,8 @@ def build_output(alert: dict, sentinel: dict, matched: list[dict], alert_type: s
 def validate_output(data: dict) -> list[str]:
     errors = []
     required_top = ["schema_version", "generated_at", "alert", "sentinel_summary",
-                    "correlation", "causation_chain", "fix_plan", "blast_radius",
-                    "confidence", "confidence_reason"]
+                    "correlation", "what_changed", "causation_chain", "fix_plan",
+                    "blast_radius", "confidence", "confidence_reason"]
     for f in required_top:
         if f not in data:
             errors.append(f"Missing required field: {f}")
@@ -715,6 +871,7 @@ def render_html(data: dict) -> str:
     chain = data.get("causation_chain", [])
     fix = data.get("fix_plan", {})
     blast = data.get("blast_radius", "")
+    what_changed = data.get("what_changed", {})
     confidence = data.get("confidence", "")
     confidence_reason = data.get("confidence_reason", "")
     generated_at = data.get("generated_at", "")
@@ -756,6 +913,31 @@ def render_html(data: dict) -> str:
             f'<p><strong>Action:</strong> {e(step.get("action", ""))}</p>'
             f'<pre>{e(step.get("command", ""))}</pre>'
             f'<p><em>Expected: {e(step.get("expected_outcome", ""))}</em></p>'
+        )
+
+    # "What changed" block
+    wc_rows = ""
+    for s in what_changed.get("signals", []):
+        secs = s.get("seconds_before_alert")
+        when = "unknown" if secs is None else (f"{secs // 60} min before" if secs >= 60
+               else f"{secs}s before" if secs >= 0 else f"{abs(secs) // 60} min after")
+        wc_rows += (
+            f'<tr><td>{e(s.get("change_type"))}</td>'
+            f'<td>{e(s.get("message"))}</td>'
+            f'<td>{e(s.get("event_time"))}</td>'
+            f'<td>{e(when)}</td></tr>\n'
+        )
+    if what_changed.get("detected"):
+        what_changed_html = (
+            f'<h2>What Changed</h2>\n'
+            f'<p><strong>{e(what_changed.get("summary"))}</strong></p>\n'
+            f'<table>\n<tr><th>Change type</th><th>Signal</th><th>Event time</th><th>Relative to alert</th></tr>\n'
+            f'{wc_rows}</table>\n'
+            f'<p class="meta">Method: {e(what_changed.get("method"))}</p>\n'
+        )
+    else:
+        what_changed_html = (
+            f'<h2>What Changed</h2>\n<p class="meta">{e(what_changed.get("summary"))}</p>\n'
         )
 
     p1 = fix.get("p1", {})
@@ -833,6 +1015,7 @@ def render_html(data: dict) -> str:
 {finding_rows}
 </table>
 
+{what_changed_html}
 <h2>Causation Chain</h2>
 <table>
 <tr><th>Level</th><th>Description</th><th>Evidence</th></tr>

@@ -30,6 +30,11 @@ incident-triage \
 ```json
 {
   "confidence": "high",
+  "what_changed": {
+    "detected": true,
+    "summary": "Likely trigger: deploy/rollout change — a new build is crashing on startup; first seen 2 min before the alert (Pod payments/api-gateway).",
+    "trigger": { "change_type": "deploy/rollout change", "reason": "BackOff", "seconds_before_alert": 135 }
+  },
   "causation_chain": [
     { "label": "root_cause",   "description": "Pod payments/api-gateway CrashLoopBackOff (restarts: 47)" },
     { "label": "intermediate", "description": "Deployment payments/api-gateway — 0/3 replicas available" },
@@ -123,9 +128,10 @@ Free text is also accepted — service name, namespace, and timestamps are extra
 2. **Prioritise** — sentinel sections are ranked by relevance to the alert type
 3. **Score** — each finding is classified as `direct`, `contributing`, or `background`
 4. **Chain** — the top direct finding becomes the root cause; contributing findings become intermediate steps
-5. **Plan** — the fix command comes from the sentinel `recommendation` field (a complete kubectl command)
+5. **What changed** — event timestamps are correlated against the alert start time to surface the *likely trigger* ("a new build started crashing 2 min before the alert") and classify the change type — config, image, rollout, resource, scheduling, quota, or probe/health
+6. **Plan** — the fix command comes from the sentinel `recommendation` field (a complete kubectl command)
 
-No LLM calls. No network access. Deterministic output for the same inputs.
+No LLM calls. No network access. Deterministic output for the same inputs — including `what_changed`, which is pure temporal correlation over the snapshot.
 
 ## Smoke test
 
@@ -158,7 +164,7 @@ kubectl sentinel --json -n payments > snap.json
 incident-triage --sentinel-json snap.json --alert "payments API 503 since 14:30"
 ```
 
-kubectl-sentinel runs 10 health checks in under 10 seconds and emits structured JSON.
+kubectl-sentinel runs 15 health dimensions in under 10 seconds and emits structured JSON.
 Its `recommendation` field is used directly as the fix command in the triage output.
 
 ## Claude Code skill
