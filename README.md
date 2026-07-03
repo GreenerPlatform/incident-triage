@@ -172,7 +172,7 @@ kubectl sentinel --json -n payments > snap.json
 incident-triage --sentinel-json snap.json --alert "payments API 503 since 14:30"
 ```
 
-kubectl-sentinel runs 15 health dimensions in under 10 seconds and emits structured JSON.
+kubectl-sentinel runs 15 health dimensions and emits structured JSON.
 Its `recommendation` field is used directly as the fix command in the triage output.
 
 ## Using it from an AI agent (any runtime)
@@ -198,8 +198,8 @@ cp skills/SKILL.md /path/to/your-project/.claude/commands/triage.md
 
 ## The dual-layer pattern
 
-incident-triage is the deterministic layer: alert → cluster state → causation chain in under
-1 second. An agent (via MCP or the reference skill) is the reasoning layer: it runs sentinel,
+incident-triage is the deterministic layer: alert → cluster state → causation chain in a
+single pass. An agent (via MCP or the reference skill) is the reasoning layer: it runs sentinel,
 feeds the output to this tool, then adds context from your incident history and playbooks.
 The agent is bounded by the evidence — it reasons over facts the CLI established, not guesses.
 
