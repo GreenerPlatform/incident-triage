@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Olawale Ogundiran
 """
 incident-triage — deterministic incident triage CLI tool.
 
@@ -10,8 +12,8 @@ No LLM calls. No external dependencies. stdlib only.
 
 Exit codes:
   0 — triage complete, valid output
-  1 — namespace unknown; Claude must ask the user
-  2 — sentinel snapshot missing or invalid; Claude must collect cluster state
+  1 — namespace unknown; the caller (agent/skill/human) must supply --namespace
+  2 — sentinel snapshot missing or invalid; the caller must collect cluster state
   3 — no sentinel findings match the alert; low-confidence output produced
 
 Usage:
@@ -26,7 +28,7 @@ import re
 import sys
 from datetime import datetime, timezone
 
-VERSION = "1.2.0"
+VERSION = "1.2.1"
 SCHEMA_VERSION = "1.1"
 
 # ── Alert type classification ─────────────────────────────────────────────────
@@ -1073,7 +1075,7 @@ def main() -> int:
         if sentinel is None:
             return 2
 
-    # Missing sentinel — emit alert parse result and exit 2 (Claude must collect state)
+    # Missing sentinel — emit alert parse result and exit 2 (caller must collect state)
     if has_alert and not has_sentinel:
         partial = {
             "schema_version": SCHEMA_VERSION,
@@ -1087,7 +1089,7 @@ def main() -> int:
                 "severity": alert.get("severity", "warning"),
             },
             "sentinel_summary": None,
-            "error": "sentinel snapshot missing — Claude must collect cluster state with /sentinel",
+            "error": "sentinel snapshot missing — collect cluster state first (kubectl-sentinel --json)",
         }
         print(json.dumps(partial, indent=2, ensure_ascii=False))
         return 2
@@ -1118,7 +1120,7 @@ def main() -> int:
     # Namespace fallback
     if not alert.get("namespace"):
         alert["namespace"] = None
-        print("WARNING: namespace not determinable from alert — Claude should ask the user",
+        print("WARNING: namespace not determinable from alert — pass --namespace to scope triage",
               file=sys.stderr)
         # Continue with null namespace; confidence will be low
 

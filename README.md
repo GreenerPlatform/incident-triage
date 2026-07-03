@@ -15,9 +15,10 @@
 
 ## Why Incident Triage Takes Too Long
 
-When PagerDuty fires, you get the alert — not the cause. You open the dashboard,
-then kubectl, then Slack history, then runbooks. By the time you have a picture,
-20 minutes are gone.
+When your on-call alert fires — PagerDuty, Alertmanager, Opsgenie, Grafana, or a
+plain webhook — you get the symptom, not the cause. You open the dashboard, then
+kubectl, then chat history, then runbooks. By the time you have a picture, 20
+minutes are gone.
 
 > **Alert in. Causation chain out. Fix command, ready to run.**
 
@@ -60,11 +61,18 @@ incident-triage \
 ## Install
 
 ```bash
-bash install.sh          # installs to ~/bin
-bash install.sh /usr/local/bin  # custom path
+# pipx (recommended — isolated, on your PATH)
+pipx install incident-triage
+
+# or pip
+pip install incident-triage
+
+# or from source, no packaging
+git clone https://github.com/GreenerPlatform/incident-triage
+cd incident-triage && bash install.sh /usr/local/bin
 ```
 
-**Requirements:** Python 3.10+ · stdlib only · no pip packages
+**Requirements:** Python 3.10+ · standard library only · zero runtime dependencies
 
 ---
 
@@ -102,7 +110,7 @@ When `--alert` points to a JSON file, it is parsed as an alert descriptor:
 
 ```json
 {
-  "alert_source": "pagerduty",
+  "alert_source": "pagerduty | alertmanager | opsgenie | grafana | webhook | freetext",
   "alert_name": "payments SLO breach — availability < 99.5%",
   "service": "api-gateway",
   "namespace": "payments",
@@ -136,14 +144,14 @@ No LLM calls. No network access. Deterministic output for the same inputs — in
 ## Smoke test
 
 ```bash
-python3 incident-triage \
+python3 incident_triage.py \
   --sentinel-json tests/fixtures/sample-report.json \
   --alert tests/fixtures/sample-alert.json \
   | python3 -m json.tool
 ```
 
 `tests/fixtures/` contains a minimal sentinel snapshot (CRITICAL: CrashLoopBackOff in namespace
-payments) and a matching PagerDuty alert descriptor.
+payments) and a matching alert descriptor.
 
 ## Output schema
 
@@ -167,10 +175,17 @@ incident-triage --sentinel-json snap.json --alert "payments API 503 since 14:30"
 kubectl-sentinel runs 15 health dimensions in under 10 seconds and emits structured JSON.
 Its `recommendation` field is used directly as the fix command in the triage output.
 
-## Claude Code skill
+## Using it from an AI agent (any runtime)
 
-The skill definition lives at [`skills/SKILL.md`](skills/SKILL.md). To use `/triage`
-in any Claude Code project, copy it to `.claude/commands/triage.md`:
+The tool is a plain CLI with JSON in/out, so any agent can drive it. Two paths:
+
+**1. MCP server (recommended, vendor-neutral).** The [GreenerPlatform MCP server](https://github.com/GreenerPlatform)
+exposes `sentinel` and `triage` as tools to any MCP-capable client — Cursor, Claude Desktop,
+VS Code, Windsurf, or a custom agent. Install once; it works everywhere.
+
+**2. Reference agent skill.** [`skills/SKILL.md`](skills/SKILL.md) is a reference reasoning-layer
+integration (Claude Code command + an optional PagerDuty enrichment phase). Copy it into your
+agent's command directory and adapt the alerting/notification provider to your stack:
 
 ```bash
 cp skills/SKILL.md /path/to/your-project/.claude/commands/triage.md
@@ -178,18 +193,15 @@ cp skills/SKILL.md /path/to/your-project/.claude/commands/triage.md
 
 ```
 /triage payments API returning 503 since 14:30
-/triage --pd-incident Q1W2E3R
 /triage --sentinel-json snap.json --alert "payments API 503"
 ```
-
-The skill runs sentinel, feeds the output to the CLI, then adds PagerDuty incident history,
-root cause classification, and an execute prompt with the fix command.
 
 ## The dual-layer pattern
 
 incident-triage is the deterministic layer: alert → cluster state → causation chain in under
-1 second. The `/triage` Claude Code skill is the reasoning layer: it runs sentinel, feeds the
-output to this tool, then adds context from PagerDuty history, related incidents, and playbooks.
+1 second. An agent (via MCP or the reference skill) is the reasoning layer: it runs sentinel,
+feeds the output to this tool, then adds context from your incident history and playbooks.
+The agent is bounded by the evidence — it reasons over facts the CLI established, not guesses.
 
 ---
 

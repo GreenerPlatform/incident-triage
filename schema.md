@@ -1,7 +1,7 @@
 # Output Schema — incident-triage v1.1
 
 This file defines the JSON interface between the `incident-triage` CLI tool and any
-consuming layer (Claude Code skill, CI pipeline, custom tooling).
+consuming layer (an AI agent via MCP, a CI pipeline, or custom tooling).
 
 ---
 
@@ -11,7 +11,7 @@ Passed to `incident-triage` as `--alert <file.json>`, or parsed from free text.
 
 ```json
 {
-  "alert_source": "pagerduty | alertmanager | freetext",
+  "alert_source": "pagerduty | alertmanager | opsgenie | grafana | webhook | freetext",
   "alert_name": "payments-api SLO breach — error rate 12%",
   "service": "payments-api",
   "namespace": "payments",
@@ -25,7 +25,7 @@ Passed to `incident-triage` as `--alert <file.json>`, or parsed from free text.
 `namespace` may be `null` if not determinable from the alert. The tool will emit a
 warning to stderr and produce low-confidence output.
 
-Optional fields (used by the Claude skill for focused correlation):
+Optional fields (used by the reasoning layer for focused correlation):
 
 ```json
 {
@@ -51,7 +51,7 @@ See [GreenerPlatform/kubectl-sentinel](https://github.com/GreenerPlatform/kubect
   "schema_version": "1.1",
   "generated_at": "<ISO8601>",
   "alert": {
-    "source": "pagerduty | alertmanager | freetext",
+    "source": "pagerduty | alertmanager | opsgenie | grafana | webhook | freetext",
     "name": "<alert name>",
     "service": "<service name | null>",
     "namespace": "<namespace | null>",

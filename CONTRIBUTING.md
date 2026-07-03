@@ -10,7 +10,7 @@ cd incident-triage
 bash install.sh ~/bin
 
 # Smoke test (no cluster needed)
-python3 incident-triage \
+python3 incident_triage.py \
   --sentinel-json tests/fixtures/sample-report.json \
   --alert tests/fixtures/sample-alert.json \
   | python3 -m json.tool
@@ -27,7 +27,7 @@ python3 incident-triage \
 ## Smoke test
 
 ```bash
-python3 incident-triage \
+python3 incident_triage.py \
   --sentinel-json tests/fixtures/sample-report.json \
   --alert tests/fixtures/sample-alert.json
 ```
@@ -58,3 +58,14 @@ Include:
 - The sentinel JSON file (or a minimal reproducer)
 - The alert text or file
 - The full output and exit code (`echo $?`)
+
+## Documentation voice
+
+Docs represent production reliability engineering. Keep them firm and clean.
+
+- Lead with the fact, not the feeling. State what it does and the number that proves it.
+- Every claim is verifiable — a command, an exit code, a measurement — or it is cut.
+- Second person, present tense, active voice. Short sentences.
+- Do not use: leverage, robust, seamless, powerful, effortless, delve, game-changing,
+  cutting-edge, supercharge, unlock, revolutionary, world-class, "in today's ...".
+- No "it's not just X, it's Y" constructions. No emoji in prose.

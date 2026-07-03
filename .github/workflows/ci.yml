@@ -16,21 +16,21 @@ jobs:
           python-version: '3.10'
 
       - name: Byte-compile
-        run: python3 -m py_compile incident-triage
+        run: python3 -m py_compile incident_triage.py
 
       - name: Version
-        run: python3 incident-triage --version
+        run: python3 incident_triage.py --version
 
       - name: Smoke test — JSON output is valid
         run: |
-          python3 incident-triage \
+          python3 incident_triage.py \
             --sentinel-json tests/fixtures/sample-report.json \
             --alert tests/fixtures/sample-alert.json \
             | python3 -m json.tool > /dev/null
 
       - name: Smoke test — HTML renders
         run: |
-          python3 incident-triage \
+          python3 incident_triage.py \
             --sentinel-json tests/fixtures/sample-report.json \
             --alert tests/fixtures/sample-alert.json \
             --output-format html > /tmp/triage.html

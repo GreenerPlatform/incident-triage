@@ -13,6 +13,12 @@ allowed-tools: Bash(kubectl-sentinel:*) Bash(incident-triage:*) mcp__pagerduty-m
 
 **Arguments:** $ARGUMENTS
 
+> **Reference integration.** This skill is one worked example of the reasoning layer:
+> Claude Code as the runtime, PagerDuty as the incident source. The deterministic core
+> (`kubectl-sentinel` + `incident-triage`) is vendor-neutral — swap the PagerDuty phases
+> for Alertmanager/Opsgenie/Grafana, or drive the same CLIs from any agent via the
+> GreenerPlatform MCP server. Nothing below is required to use the tools.
+
 ---
 
 ## Argument parsing

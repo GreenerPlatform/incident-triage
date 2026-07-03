@@ -5,7 +5,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SRC="$SCRIPT_DIR/incident-triage"
+SRC="$SCRIPT_DIR/incident_triage.py"
 INSTALL_DIR="${1:-/usr/local/bin}"
 DEST="$INSTALL_DIR/incident-triage"
 

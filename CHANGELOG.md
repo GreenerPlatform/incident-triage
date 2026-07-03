@@ -7,6 +7,22 @@ Versioning: [Semantic Versioning](https://semver.org/)
 
 ---
 
+## [1.2.1] — 2026-07-03
+
+### Changed
+- Relicensed to **Apache-2.0** (patent grant + attribution); added `NOTICE`, `TRADEMARKS.md`, and SPDX headers. Copyright standardized to Olawale Ogundiran.
+- Module renamed `incident-triage` → `incident_triage.py` so it is importable and packageable. The installed command is still `incident-triage`.
+- Docs, schema, and exit-code messages are vendor-neutral (alert sources: PagerDuty / Alertmanager / Opsgenie / Grafana / webhook / freetext; reasoning layer via MCP or a reference skill).
+
+### Added
+- **PyPI/pipx** packaging (`pyproject.toml` + `incident-triage` console entry point) and a Trusted-Publishing release workflow — `pipx install incident-triage`.
+- **Homebrew** formula template under `packaging/homebrew/`.
+- `Documentation voice` standard in `CONTRIBUTING.md`.
+
+_No behavioural change to the triage logic._
+
+---
+
 ## [1.2.0] — 2026-07-03
 
 ### Added
