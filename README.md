@@ -134,12 +134,32 @@ Free text is also accepted — service name, namespace, and timestamps are extra
 
 1. **Classify** — alert text is matched to one of 12 alert types (SLO burn, CrashLoop, OOMKill, etc.)
 2. **Prioritise** — sentinel sections are ranked by relevance to the alert type
-3. **Score** — each finding is classified as `direct`, `contributing`, or `background`
-4. **Chain** — the top direct finding becomes the root cause; contributing findings become intermediate steps
+3. **Score** — each finding is classified as `direct`, `contributing`, `parallel`, or `background`. Chronic hygiene (missing limits/probes, node memory %) is always background.
+4. **Chain** — the primary direct finding (earliest priority section) is the root cause; only downstream findings with shared resource lineage become intermediate steps. Unrelated CRITICALs go to `parallel_findings`.
 5. **What changed** — event timestamps are correlated against the alert start time to surface the *likely trigger* ("a new build started crashing 2 min before the alert") and classify the change type — config, image, rollout, resource, scheduling, quota, or probe/health
 6. **Plan** — the fix command comes from the sentinel `recommendation` field (a complete kubectl command)
 
 No LLM calls. No network access. Deterministic output for the same inputs — including `what_changed`, which is pure temporal correlation over the snapshot.
+
+Classification is **stem-tolerant and scored**, not literal first-match: "restart" also matches
+"restarts"/"restarting", numeric codes match as whole words, and the best-scoring type wins. If a
+type can't be determined, triage degrades to an honest "root cause unclear" rather than guessing —
+it never pins a root cause on a namespace-only coincidence.
+
+### Extending alert classification (no code change)
+
+Alert vocabularies differ across teams and tools. Teach the classifier your own without forking:
+
+```bash
+export INCIDENT_TRIAGE_ALERT_TYPES=~/my-alert-types.json   # or ~/.config/incident-triage/alert-types.json
+```
+
+```json
+{ "crash_loop": ["flapping", "bouncing"], "high_error_rate": ["sev1 5xx", "edge errors"] }
+```
+
+Your keywords are **appended** to the built-in map (defaults are never removed). To steer a *new*
+alert type's correlation, also add it to `SECTION_PRIORITY`; otherwise it uses the `unknown` priority.
 
 ## Smoke test
 

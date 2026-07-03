@@ -1,0 +1,104 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-07-03T03:32:53Z",
+  "context": "gke_eng-planning-eu-services_europe-west1-d_planning",
+  "scope": "namespace: p4d-fdplan",
+  "exit_code": 2,
+  "summary": { "critical": 3, "warn": 4, "ok": 3 },
+  "sections": [
+    {
+      "section": "NODES",
+      "findings": [
+        {
+          "severity": "WARN",
+          "message": "15 non-standard node condition(s) are True — may indicate node-problem-detector alerts or cloud controller signals",
+          "recommendation": "Non-standard conditions: verify intentional",
+          "last_event": null
+        }
+      ]
+    },
+    {
+      "section": "PODS",
+      "findings": [
+        {
+          "severity": "OK",
+          "message": "449 pods checked — no issues",
+          "recommendation": null,
+          "last_event": null
+        }
+      ]
+    },
+    {
+      "section": "PROBES",
+      "findings": [
+        {
+          "severity": "WARN",
+          "message": "420 running pod(s) missing liveness or readiness probes (non-system namespaces)",
+          "recommendation": "420 pod(s) missing probes: add livenessProbe and readinessProbe",
+          "last_event": null
+        }
+      ]
+    },
+    {
+      "section": "WORKLOADS",
+      "findings": [
+        {
+          "severity": "OK",
+          "message": "Deployments: 131 checked — all healthy",
+          "recommendation": null,
+          "last_event": null
+        }
+      ]
+    },
+    {
+      "section": "HTTP",
+      "findings": [
+        {
+          "severity": "CRITICAL",
+          "message": "HTTP Service p4d-fdplan/peep-v1:80 — no endpoints (no backing pods)",
+          "recommendation": "HTTP Service p4d-fdplan/peep-v1: verify selector labels match pods",
+          "last_event": null
+        }
+      ]
+    },
+    {
+      "section": "JOBS",
+      "findings": [
+        {
+          "severity": "CRITICAL",
+          "message": "Job p4d-fdplan/bumblebee-billing-post-report-events-29540160: Failed (DeadlineExceeded) — 1 failed pod(s)",
+          "recommendation": "Job p4d-fdplan/bumblebee-billing-post-report-events-29540160: 'kubectl describe job bumblebee-billing-post-report-events-29540160 -n p4d-fdplan' and 'kubectl logs job/bumblebee-billing-post-report-events-29540160 -n p4d-fdplan' to see why it failed",
+          "last_event": null
+        },
+        {
+          "severity": "CRITICAL",
+          "message": "Job p4d-fdplan/bumblebee-monitoring-customer-statistics-29717280: Failed (DeadlineExceeded) — 1 failed pod(s)",
+          "recommendation": "Job p4d-fdplan/bumblebee-monitoring-customer-statistics-29717280: 'kubectl describe job bumblebee-monitoring-customer-statistics-29717280 -n p4d-fdplan' to see why it failed",
+          "last_event": null
+        }
+      ]
+    },
+    {
+      "section": "HPAS",
+      "findings": [
+        {
+          "severity": "WARN",
+          "message": "HPA p4d-fdplan/bumblebee-data-sources-api-auto-scale: at max replicas (10/10) — may need ceiling raised",
+          "recommendation": "HPA p4d-fdplan/bumblebee-data-sources-api-auto-scale: at ceiling — increase maxReplicas or reduce load",
+          "last_event": null
+        }
+      ]
+    },
+    {
+      "section": "PDBS",
+      "findings": [
+        {
+          "severity": "WARN",
+          "message": "PDB p4d-fdplan/redis-master: 0 disruptions allowed — will block node drains / cluster upgrades",
+          "recommendation": "PDB p4d-fdplan/redis-master: add replicas or relax minAvailable/maxUnavailable",
+          "last_event": null
+        }
+      ]
+    }
+  ]
+}

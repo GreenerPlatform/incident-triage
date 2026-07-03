@@ -1,0 +1,10 @@
+{
+  "alert_source": "alertmanager",
+  "alert_name": "PVC datadir-mongodb-0 Pending in cybertron",
+  "service": "mongodb",
+  "namespace": "cybertron",
+  "start_time": "2026-07-03T03:00:00Z",
+  "severity": "critical",
+  "labels": { "env": "prod" },
+  "raw_body": "KubePersistentVolumeFillingUp / PVC datadir-mongodb-0 phase Pending in namespace cybertron since 2026-07-03T03:00:00Z"
+}

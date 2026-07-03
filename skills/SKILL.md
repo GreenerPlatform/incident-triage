@@ -347,6 +347,21 @@ Classification lookup:
 - Fix plan commands must use resource names from the sentinel output — no invented names, no `<your-namespace>` placeholders (use the actual namespace from the alert or sentinel scope)
 - Confidence must be stated in the header — never omit
 - If unmatched_alert is true in the triage JSON, lead the causation chain with: "Alert symptom does not directly map to a sentinel finding — cluster state collected for context"
+- **Challenge an implausible root cause — this is the reasoning layer's job.** The deterministic
+  tool ranks by section priority + name/namespace overlap; it can present a *correlation* as a root
+  cause. Before rendering `causation_chain[0]`, sanity-check it against the alert type: a failed
+  batch/CronJob is not a cause of a container-restart or latency alert; a chronic-hygiene finding is
+  not an acute cause; "same namespace" is not "caused it". If the tool's root cause is not causally
+  plausible for this alert, **demote it**: state `⚑ Tool matched <X> on namespace overlap, but it is
+  not a plausible cause of <alert> — treating as a parallel finding`, then lead with the honest
+  "root cause unclear" and the real hypotheses. Never launder a namespace coincidence into a
+  confident root cause. (The deterministic layer prevents invented cluster state; the reasoning
+  layer must prevent implausible correlation — each guards the other.)
+- **When confidence is `low` / root cause is `Unknown` / exit code is 3, do not invent a cause.**
+  Present `parallel_findings` as separate hypotheses, note that a point-in-time snapshot cannot see a
+  *resolved or intermittent* condition, and recommend the live check that would confirm it (pod
+  deep-dive: `kubectl get pod -o wide` + `kubectl describe pod` for `restartCount` and
+  `lastState.terminated` exit code). Honest absence beats a confident guess.
 - Cross-service causation links not confirmed by logs or traces must be marked `⚑ INFERRED` with a concrete verification command
 - Root cause classification: always add the `── ROOT CAUSE CLASSIFICATION ──` block when sentinel surfaces a dominant finding. Classify before recommending any fix.
 

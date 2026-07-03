@@ -48,7 +48,7 @@ See [GreenerPlatform/kubectl-sentinel](https://github.com/GreenerPlatform/kubect
 
 ```json
 {
-  "schema_version": "1.1",
+  "schema_version": "1.2",
   "generated_at": "<ISO8601>",
   "alert": {
     "source": "pagerduty | alertmanager | opsgenie | grafana | webhook | freetext",
@@ -75,12 +75,21 @@ See [GreenerPlatform/kubectl-sentinel](https://github.com/GreenerPlatform/kubect
         "section": "PODS | WORKLOADS | HTTP | EVENTS | JOBS | PDBS | QUOTAS | DNS | CERTS | ...",
         "severity": "CRITICAL | WARN",
         "message": "<sentinel finding message>",
-        "relevance": "direct | contributing",
+        "relevance": "direct | contributing | parallel",
         "relevance_reason": "<why this finding is relevant to the alert>"
       }
     ],
     "unmatched_alert": false
   },
+  "parallel_findings": [
+    {
+      "section": "JOBS",
+      "severity": "CRITICAL",
+      "message": "<unrelated CRITICAL finding>",
+      "recommendation": "<kubectl command | null>",
+      "relevance_reason": "<why this is separate from the primary chain>"
+    }
+  ],
   "what_changed": {
     "detected": true,
     "summary": "<one-line likely trigger + how long before the alert>",

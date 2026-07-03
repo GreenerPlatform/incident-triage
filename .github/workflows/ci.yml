@@ -36,3 +36,6 @@ jobs:
             --output-format html > /tmp/triage.html
           grep -q "Incident Triage" /tmp/triage.html
           grep -q "Service restores to healthy state" /tmp/triage.html
+
+      - name: Unit tests — correlation engine
+        run: python3 -m unittest tests.test_correlation -v

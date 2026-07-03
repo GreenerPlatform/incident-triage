@@ -28,8 +28,8 @@ import re
 import sys
 from datetime import datetime, timezone
 
-VERSION = "1.2.1"
-SCHEMA_VERSION = "1.1"
+VERSION = "1.3.1"
+SCHEMA_VERSION = "1.2"
 
 # ── Alert type classification ─────────────────────────────────────────────────
 
@@ -82,7 +82,12 @@ ALERT_TYPE_KEYWORDS = {
         "oom", "out of memory",
     ],
     "crash_loop": [
-        "restart count", "restarts", "above the threshold", "exit code", "restarting",
+        # Match singular and plural restart phrasings. Real alerts say "Container
+        # restart above 3" (singular) as often as "restarts above the threshold";
+        # "restart" as a bare token is safe here because crash_loop is evaluated
+        # last, after every more-specific type has had a chance to match.
+        "restart", "restarted", "restart count", "restarts",
+        "above the threshold", "exit code", "restarting",
     ],
 }
 
@@ -98,7 +103,12 @@ SECTION_PRIORITY = {
     "service_unavailable": ["PODS", "HTTP", "WORKLOADS", "PROBES", "EVENTS", "DNS", "CERTS"],
     "latency_spike":       ["RESOURCES", "HPAS", "PODS", "NODES", "DNS"],
     "oom":                 ["PODS", "NODES", "RESOURCES", "EVENTS", "QUOTAS"],
-    "crash_loop":          ["PODS", "EVENTS", "WORKLOADS", "RESOURCES", "NODES", "JOBS"],
+    # JOBS deliberately excluded: a failed batch/CronJob is a *parallel* failure
+    # path, not a cause of a workload's container restarts. Including it let a
+    # namespace-only string match promote an unrelated failed Job to "root cause"
+    # (the p4d-fdplan false positive). If a Job failure genuinely feeds a crash
+    # loop, it still surfaces via EVENTS/PODS and as a parallel_finding.
+    "crash_loop":          ["PODS", "EVENTS", "WORKLOADS", "RESOURCES", "NODES"],
     "unknown":             ["NODES", "PODS", "PROBES", "WORKLOADS", "HTTP", "gRPC",
                             "EVENTS", "RESOURCES", "PVCS", "HPAS",
                             "JOBS", "PDBS", "QUOTAS", "DNS", "CERTS"],
@@ -112,16 +122,112 @@ KNOWN_NOISY_FINDINGS = [
     "kube-system/app-kube-scheduler",   # GKE managed control plane
 ]
 
+# Chronic hygiene findings — configuration debt or capacity baselines, not incident causes.
+# Never chained as root/intermediate or used as change triggers without event timestamps.
+CHRONIC_HYGIENE_PATTERNS = [
+    r"have containers with no memory limit",
+    r"have containers with no cpu request",
+    r"missing liveness or readiness probes",
+    r"missing memory limits",
+    r"missing cpu requests",
+    r"missing probes",
+    r"non-standard node condition",
+    r"memory at \d+%",
+    r"cpu at \d+%",
+    r"\d+\s+\w+\s+events in\s+\w+\s+namespace",  # aggregate event counts
+    r"checked — all healthy",
+]
+
+# Allowed downstream sections when propagating from a root finding section.
+CAUSAL_PROPAGATION: dict[str, list[str]] = {
+    "PVCS":     ["PODS", "WORKLOADS", "HTTP", "EVENTS", "QUOTAS"],
+    "PODS":     ["WORKLOADS", "HTTP", "PROBES", "EVENTS", "RESOURCES"],
+    "WORKLOADS": ["HTTP", "PROBES", "EVENTS", "HPAS"],
+    "HTTP":     ["EVENTS"],
+    "JOBS":     ["EVENTS"],
+    "EVENTS":   [],
+    "NODES":    ["PODS", "RESOURCES", "EVENTS"],
+    "RESOURCES": ["PODS", "EVENTS"],
+    "QUOTAS":   ["PODS", "PVCS", "EVENTS"],
+    "PROBES":   ["HTTP", "WORKLOADS"],
+}
+
 
 # ── Alert parsing ─────────────────────────────────────────────────────────────
 
-def classify_alert_type(text: str) -> str:
+def _keyword_matches(keyword: str, text_lower: str) -> bool:
+    """
+    Match a keyword against already-lowercased text, tolerant of word morphology.
+
+    - A single alphabetic token matches on a word boundary AND allows trailing
+      suffixes, so "restart" also matches "restarts"/"restarting"/"restarted".
+      Morphology never causes a miss — this is the class of bug that mis-triaged the
+      p4d-fdplan "Container restart above 3" alert.
+    - A purely numeric token ("500", "503") matches only as a whole word, so "500"
+      does not spuriously match "5000ms".
+    - Multi-word or symbol-bearing keywords ("no endpoints", "5xx", "http 5") fall
+      back to plain substring — they are already specific enough.
+    """
+    kw = keyword.lower().strip()
+    if not kw:
+        return False
+    if re.fullmatch(r"[0-9]+", kw):
+        return re.search(rf"\b{re.escape(kw)}\b", text_lower) is not None
+    if re.fullmatch(r"[a-z0-9]+", kw):
+        return re.search(rf"\b{re.escape(kw)}\w*", text_lower) is not None
+    return kw in text_lower
+
+
+def load_alert_type_keywords() -> dict:
+    """
+    Return the alert-type keyword map: built-in defaults, optionally EXTENDED by a
+    user config so any org can teach the classifier its own alert vocabulary without
+    editing code — the key to working across Prometheus/Alertmanager, Datadog,
+    Grafana, PagerDuty, and bespoke alert names.
+
+    Config path: ``$INCIDENT_TRIAGE_ALERT_TYPES`` else
+    ``~/.config/incident-triage/alert-types.json``. Format: ``{"alert_type": ["kw"]}``.
+    User keywords are APPENDED to the built-in lists (defaults are never removed), so
+    extending is always safe. A new alert-type name also needs a ``SECTION_PRIORITY``
+    entry to steer correlation; otherwise it falls back to the ``unknown`` priority.
+    """
+    kmap = {k: list(v) for k, v in ALERT_TYPE_KEYWORDS.items()}
+    path = os.environ.get("INCIDENT_TRIAGE_ALERT_TYPES") or os.path.join(
+        os.path.expanduser("~"), ".config", "incident-triage", "alert-types.json"
+    )
+    try:
+        with open(path) as f:
+            user = json.load(f)
+        for atype, kws in (user or {}).items():
+            bucket = kmap.setdefault(atype, [])
+            for kw in kws or []:
+                if kw not in bucket:
+                    bucket.append(kw)
+    except (OSError, json.JSONDecodeError, AttributeError, TypeError):
+        pass  # No/invalid config — defaults stand.
+    return kmap
+
+
+def classify_alert_type(text: str, keyword_map: dict | None = None) -> str:
+    """
+    Classify an alert into a type using stem-tolerant, SCORED keyword matching.
+
+    Scoring (not first-match-wins): every type is scored by how many of its keywords
+    hit, and the highest-scoring type wins; ties go to the more-specific (earlier)
+    type. One odd or missing word no longer flips (or drops) the classification the
+    way a single literal substring used to. Returns ``unknown`` only when nothing
+    matches — a case handled conservatively downstream (no namespace-only root cause).
+    """
     text_lower = text.lower()
-    # Iterate in definition order — more-specific types are defined first
-    for alert_type, keywords in ALERT_TYPE_KEYWORDS.items():
-        if any(kw in text_lower for kw in keywords):
-            return alert_type
-    return "unknown"
+    kmap = keyword_map if keyword_map is not None else ALERT_TYPE_KEYWORDS
+    best_type = "unknown"
+    best_score = 0
+    for alert_type, keywords in kmap.items():  # dict order = specific → general
+        score = sum(1 for kw in keywords if _keyword_matches(kw, text_lower))
+        if score > best_score:  # strict '>' keeps the earlier (more-specific) type on ties
+            best_score = score
+            best_type = alert_type
+    return best_type
 
 
 def extract_start_time(text: str) -> str | None:
@@ -230,6 +336,65 @@ def _is_noisy(message: str) -> bool:
     return any(noise.lower() in msg_lower for noise in KNOWN_NOISY_FINDINGS)
 
 
+def _is_chronic_hygiene(message: str) -> bool:
+    """Return True for standing config/capacity findings — not acute incident causes."""
+    msg_lower = message.lower()
+    return any(re.search(pat, msg_lower) for pat in CHRONIC_HYGIENE_PATTERNS)
+
+
+def _expand_volume_tokens(name: str) -> set[str]:
+    """Derive workload/pod tokens from PVC volume claim names."""
+    tokens = {name.lower()}
+    m = re.match(r"^datadir-(.+)-(\d+)$", name, re.IGNORECASE)
+    if m:
+        workload, ordinal = m.group(1), m.group(2)
+        tokens.add(f"{workload}-{ordinal}".lower())
+        tokens.add(workload.lower())
+    return tokens
+
+
+def extract_resource_tokens(message: str) -> set[str]:
+    """Extract normalized resource identifiers referenced in a sentinel finding."""
+    tokens: set[str] = set()
+    msg = message.lower()
+
+    for m in re.finditer(r"\b([a-z0-9][a-z0-9\-]+)/([a-z0-9][a-z0-9\-]+)", msg):
+        ns, name = m.group(1), m.group(2)
+        tokens.add(name)
+        tokens.add(f"{ns}/{name}")
+        tokens |= _expand_volume_tokens(name)
+
+    for m in re.finditer(r"\b(?:pvc|pod|deployment|service|job|statefulset)\s+[`'\"]?([a-z0-9][a-z0-9\-]+)[`'\"]?", msg):
+        tokens.add(m.group(1))
+        tokens |= _expand_volume_tokens(m.group(1))
+
+    # HTTP Service cybertron/peep-v1:80
+    m = re.search(r"service\s+[\w-]+/([\w-]+):", message, re.IGNORECASE)
+    if m:
+        tokens.add(m.group(1).lower())
+
+    return tokens
+
+
+def _token_related(a: str, b: str) -> bool:
+    """Return True when two resource tokens refer to the same workload (prefix match)."""
+    if a == b:
+        return True
+    return a.startswith(b + "-") or b.startswith(a + "-")
+
+
+def _resources_overlap(a: set[str], b: set[str]) -> bool:
+    if not a or not b:
+        return False
+    if a & b:
+        return True
+    for ta in a:
+        for tb in b:
+            if _token_related(ta, tb):
+                return True
+    return False
+
+
 def _in_causal_scope(msg_lower: str, emitting_service: str, dependencies: list[str],
                      namespace: str) -> bool:
     """
@@ -245,19 +410,67 @@ def _in_causal_scope(msg_lower: str, emitting_service: str, dependencies: list[s
     return any(t in msg_lower for t in targets)
 
 
+def _is_causally_linked(root: dict, candidate: dict, alert: dict) -> bool:
+    """
+    Return True when candidate plausibly propagates from root — same resource lineage
+    and an allowed downstream section. Chronic hygiene never links.
+    """
+    if _is_chronic_hygiene(candidate.get("message", "")):
+        return False
+
+    root_section = root.get("section", "")
+    cand_section = candidate.get("section", "")
+    allowed = CAUSAL_PROPAGATION.get(root_section, [])
+    if cand_section not in allowed:
+        return False
+
+    root_tokens = extract_resource_tokens(root.get("message", ""))
+    cand_tokens = extract_resource_tokens(candidate.get("message", ""))
+    if _resources_overlap(root_tokens, cand_tokens):
+        return True
+
+    service = (alert.get("service") or "").lower()
+    msg_lower = candidate.get("message", "").lower()
+    if service and service in msg_lower and cand_section in ("HTTP", "WORKLOADS", "PODS", "PROBES"):
+        return True
+
+    for dep in alert.get("dependencies") or []:
+        if dep.lower() in msg_lower and cand_section in ("HTTP", "WORKLOADS", "PODS", "EVENTS"):
+            return True
+
+    return False
+
+
+def _pick_primary_direct(directs: list[dict], alert: dict) -> dict | None:
+    """Choose the single root finding when multiple CRITICAL matches exist."""
+    if not directs:
+        return None
+
+    service = (alert.get("service") or "").lower()
+    emitting = (alert.get("emitting_service") or "").lower()
+
+    candidates = directs
+    if service:
+        scoped = [f for f in directs if service in f["message"].lower()]
+        if scoped:
+            candidates = scoped
+    elif emitting:
+        scoped = [f for f in directs if emitting in f["message"].lower()]
+        if scoped:
+            candidates = scoped
+
+    # Lowest priority_rank = earliest section in the alert-type priority list (true root).
+    return min(candidates, key=lambda f: f.get("priority_rank", 999))
+
+
 def score_findings(sentinel: dict, alert: dict, alert_type: str) -> list[dict]:
     """
-    Score each sentinel finding as direct / contributing / background.
+    Score each sentinel finding as direct / contributing / parallel / background.
 
-    Step 0 (alert-service-map scoping): if emitting_service is set, only findings
-    that reference the emitting service, its dependencies, or the alert namespace
-    are eligible for direct/contributing classification. All others are background.
-
-    Known-noisy findings are suppressed entirely (not included in output).
-
-    Primary P1 source: the 'recommendation' field on matched findings —
-    it is already a complete, executable kubectl command. We only fall back
-    to template-filling when recommendation is null.
+    Direct: CRITICAL in a priority section, in scope, references alert service/namespace.
+    Contributing: causally linked downstream of the primary direct finding only.
+    Parallel: other CRITICAL matches not on the primary causation path.
+    Background: chronic hygiene, out-of-scope, or non-priority sections.
     """
     priority_sections = SECTION_PRIORITY.get(alert_type, SECTION_PRIORITY["unknown"])
     service = (alert.get("service") or "").lower()
@@ -265,7 +478,7 @@ def score_findings(sentinel: dict, alert: dict, alert_type: str) -> list[dict]:
     emitting_service = (alert.get("emitting_service") or "").lower()
     dependencies = alert.get("dependencies") or []
 
-    matched = []
+    raw: list[dict] = []
     for section_obj in sentinel.get("sections", []):
         section = section_obj["section"]
         in_priority = section in priority_sections
@@ -280,42 +493,53 @@ def score_findings(sentinel: dict, alert: dict, alert_type: str) -> list[dict]:
             msg_lower = msg.lower()
             rec = finding.get("recommendation")
 
-            # Suppress known-noisy findings unconditionally
             if _is_noisy(msg):
                 continue
 
-            # Step 0: scope filter — if emitting_service is known, restrict to causal path
+            if _is_chronic_hygiene(msg):
+                raw.append({
+                    "section": section,
+                    "severity": sev,
+                    "message": msg,
+                    "recommendation": rec,
+                    "relevance": "background",
+                    "relevance_reason": "Chronic hygiene finding — not an acute incident cause",
+                    "priority_rank": priority_rank,
+                    "last_event": finding.get("last_event"),
+                    "signals": extract_signals(finding),
+                })
+                continue
+
             in_scope = _in_causal_scope(msg_lower, emitting_service, dependencies, namespace)
 
-            # Direct: CRITICAL + in priority section + in causal scope + references service/ns
-            is_direct = (
-                sev == "CRITICAL"
-                and in_priority
-                and in_scope
-                and (
-                    (service and service in msg_lower)
-                    or (namespace and namespace in msg_lower)
-                    or (emitting_service and emitting_service in msg_lower)
-                )
+            references_alert = (
+                (service and service in msg_lower)
+                or (emitting_service and emitting_service in msg_lower)
+                # Namespace-only overlap is weak evidence ("same namespace" ≠ "caused
+                # it"). Let it seed a root cause only when the alert type is known.
+                # For 'unknown' alerts, require a service/emitting match so a
+                # classification miss degrades to honest "root cause unclear" instead
+                # of a namespace-coincidence false positive — a second safety net
+                # independent of the keyword fix.
+                or (namespace and namespace in msg_lower and alert_type != "unknown")
             )
-
-            # Contributing: CRITICAL or WARN in a priority section and in causal scope
-            is_contributing = (not is_direct) and in_priority and in_scope and sev in ("CRITICAL", "WARN")
+            is_direct = sev == "CRITICAL" and in_priority and in_scope and references_alert
 
             if is_direct:
                 relevance = "direct"
-                reason = f"CRITICAL finding in priority section {section}; message references service/namespace from alert"
-            elif is_contributing:
-                relevance = "contributing"
-                reason = f"{sev} finding in priority section {section} (rank {priority_rank + 1})"
+                reason = (f"CRITICAL finding in priority section {section}; "
+                          f"message references service/namespace from alert")
             elif not in_scope:
                 relevance = "background"
                 reason = f"Outside causal scope (emitting_service={emitting_service or 'unknown'})"
-            else:
+            elif not in_priority:
                 relevance = "background"
                 reason = f"Section {section} not in priority list for {alert_type}"
+            else:
+                relevance = "background"
+                reason = "Pending correlation to primary root cause"
 
-            matched.append({
+            raw.append({
                 "section": section,
                 "severity": sev,
                 "message": msg,
@@ -327,10 +551,66 @@ def score_findings(sentinel: dict, alert: dict, alert_type: str) -> list[dict]:
                 "signals": extract_signals(finding),
             })
 
-    # Sort: direct first, then contributing by section priority, then background
-    order = {"direct": 0, "contributing": 1, "background": 2}
-    matched.sort(key=lambda f: (order[f["relevance"]], f["priority_rank"]))
-    return matched
+    directs = [f for f in raw if f["relevance"] == "direct"]
+    primary = _pick_primary_direct(directs, alert)
+
+    if primary:
+        for f in raw:
+            if f["relevance"] != "direct":
+                continue
+            if f["message"] == primary["message"]:
+                f["relevance_reason"] = (
+                    f"Primary root cause — CRITICAL in {f['section']} matched alert scope"
+                )
+            elif _is_causally_linked(primary, f, alert):
+                f["relevance"] = "contributing"
+                f["relevance_reason"] = (
+                    f"Downstream of primary root ({primary['section']}) — shared resource lineage"
+                )
+            else:
+                f["relevance"] = "parallel"
+                f["relevance_reason"] = (
+                    "CRITICAL finding matched alert scope but is not the primary root cause "
+                    "— investigate separately"
+                )
+
+        for f in raw:
+            if f["relevance"] != "background":
+                continue
+            if f["severity"] not in ("CRITICAL", "WARN"):
+                continue
+            if f["section"] not in priority_sections:
+                continue
+            if not _in_causal_scope(
+                f["message"].lower(), emitting_service, dependencies, namespace
+            ):
+                continue
+            if _is_causally_linked(primary, f, alert):
+                f["relevance"] = "contributing"
+                f["relevance_reason"] = (
+                    f"Downstream of primary root ({primary['section']}) — shared resource lineage"
+                )
+
+    # Surface CRITICALs in the alert namespace as parallel failure paths — whether
+    # or not a primary root cause was found. When the snapshot has no direct cause
+    # (e.g. a resolved restart), these are the only actionable signals and must not
+    # be dropped; when there is a primary, they are separate paths worth flagging.
+    if namespace:
+        for f in raw:
+            if f["relevance"] != "background":
+                continue
+            if f["severity"] != "CRITICAL":
+                continue
+            if namespace not in f["message"].lower():
+                continue
+            f["relevance"] = "parallel"
+            f["relevance_reason"] = (
+                "CRITICAL finding in alert namespace on a separate failure path"
+            )
+
+    order = {"direct": 0, "contributing": 1, "parallel": 2, "background": 3}
+    raw.sort(key=lambda f: (order[f["relevance"]], f["priority_rank"]))
+    return raw
 
 
 # ── Causation chain builder ───────────────────────────────────────────────────
@@ -338,15 +618,19 @@ def score_findings(sentinel: dict, alert: dict, alert_type: str) -> list[dict]:
 def build_causation_chain(matched: list[dict], alert: dict) -> list[dict]:
     chain = []
     direct = [f for f in matched if f["relevance"] == "direct"]
-    contributing = [f for f in matched if f["relevance"] == "contributing"]
+    primary = _pick_primary_direct(direct, alert) or (direct[0] if direct else None)
+    contributing = [
+        f for f in matched
+        if f["relevance"] == "contributing"
+        and (not primary or _is_causally_linked(primary, f, alert))
+    ]
 
-    if direct:
-        first = direct[0]
+    if primary:
         chain.append({
             "level": 1,
             "label": "root_cause",
-            "description": first["message"],
-            "evidence": f"Sentinel CRITICAL finding in {first['section']}",
+            "description": primary["message"],
+            "evidence": f"Sentinel CRITICAL finding in {primary['section']}",
         })
     else:
         chain.append({
@@ -356,12 +640,15 @@ def build_causation_chain(matched: list[dict], alert: dict) -> list[dict]:
             "evidence": "No direct CRITICAL finding matched the alert service/namespace",
         })
 
-    for i, cf in enumerate(contributing[:2]):  # max 2 intermediate steps
+    for cf in contributing[:2]:
         chain.append({
             "level": len(chain) + 1,
             "label": "intermediate",
             "description": cf["message"],
-            "evidence": f"Sentinel {cf['severity']} finding in {cf['section']}",
+            "evidence": (
+                f"Downstream of root ({primary['section'] if primary else 'unknown'}) — "
+                f"{cf['severity']} in {cf['section']}"
+            ),
         })
 
     chain.append({
@@ -379,6 +666,25 @@ def build_causation_chain(matched: list[dict], alert: dict) -> list[dict]:
     })
 
     return chain
+
+
+def collect_parallel_findings(matched: list[dict], chain: list[dict]) -> list[dict]:
+    """CRITICAL findings on separate failure paths, not in the linear causation chain."""
+    chain_msgs = {step["description"] for step in chain}
+    parallel = []
+    for f in matched:
+        if f["relevance"] != "parallel":
+            continue
+        if f["message"] in chain_msgs:
+            continue
+        parallel.append({
+            "section": f["section"],
+            "severity": f["severity"],
+            "message": f["message"],
+            "recommendation": f.get("recommendation"),
+            "relevance_reason": f.get("relevance_reason"),
+        })
+    return parallel
 
 
 # ── Fix plan builder ──────────────────────────────────────────────────────────
@@ -471,8 +777,9 @@ def build_fix_plan(matched: list[dict], alert: dict) -> dict:
     """
     alert_namespace = alert.get("namespace")
     direct = [f for f in matched if f["relevance"] == "direct"]
+    primary = _pick_primary_direct(direct, alert) or (direct[0] if direct else None)
     contributing = [f for f in matched if f["relevance"] == "contributing"]
-    all_relevant = direct + contributing
+    all_relevant = ([primary] if primary else []) + contributing
 
     # Prefer namespace from matched findings (sentinel is authoritative for actual resource ns)
     # Fall back to alert namespace, then UNKNOWN
@@ -590,24 +897,26 @@ def score_confidence(matched: list[dict], alert: dict) -> tuple[str, str]:
 
 def assess_blast_radius(matched: list[dict], alert: dict) -> str:
     direct = [f for f in matched if f["relevance"] == "direct"]
+    primary = _pick_primary_direct(direct, alert)
     contrib = [f for f in matched if f["relevance"] == "contributing"]
-    sections_hit = {f["section"] for f in direct + contrib}
+    parallel = [f for f in matched if f["relevance"] == "parallel"]
+    sections_hit = {f["section"] for f in ([primary] if primary else []) + contrib}
 
     parts = []
     ns = alert.get("namespace", "unknown")
 
     if "WORKLOADS" in sections_hit:
-        parts.append(f"all workloads in namespace {ns} are degraded")
+        parts.append(f"workloads tied to the primary root in namespace {ns} are degraded")
     if "HTTP" in sections_hit:
         parts.append("HTTP traffic to affected services is failing")
     if "NODES" in sections_hit:
         parts.append("node-level impact may affect other namespaces on the same node")
     if "RESOURCES" in sections_hit:
         parts.append("resource pressure may affect other workloads on the same node")
-
-    crits = sum(1 for f in matched if f["severity"] == "CRITICAL")
-    if crits > 2:
-        parts.append(f"{crits} CRITICAL findings suggest broad impact")
+    if parallel:
+        parts.append(
+            f"{len(parallel)} additional CRITICAL finding(s) on separate failure paths"
+        )
 
     return "; ".join(parts) if parts else f"Impact appears contained to namespace {ns}"
 
@@ -647,7 +956,11 @@ def _classify_change(section: str, reason: str, message: str) -> str:
         return "quota change — a ResourceQuota is blocking new objects"
     if "readiness" in m or "liveness" in m or "unhealthy" in r:
         return "health/rollout change — probes started failing"
-    return f"recent change surfaced by {section}"
+    if "pvc" in m and "pending" in m:
+        return "storage change — volume cannot bind (StorageClass, quota, or zone mismatch)"
+    if section == "JOBS" and "failed" in m:
+        return "batch job failure — cron/workflow job did not complete"
+    return f"unclassified change in {section} — inspect events for the resource"
 
 
 def analyze_what_changed(matched: list[dict], alert: dict, sentinel: dict) -> dict:
@@ -667,6 +980,8 @@ def analyze_what_changed(matched: list[dict], alert: dict, sentinel: dict) -> di
     candidates: list[dict] = []
 
     def add(section: str, message: str, last_event: dict | None) -> None:
+        if _is_chronic_hygiene(message):
+            return
         le = last_event or {}
         ts = le.get("timestamp")
         dt = _parse_ts(ts)
@@ -699,8 +1014,14 @@ def analyze_what_changed(matched: list[dict], alert: dict, sentinel: dict) -> di
         # No event timestamps in the snapshot (common on freshly-collected snapshots) —
         # fall back to inferring the likely change from the top correlated finding.
         # Still deterministic; just a weaker signal (no "how long before" available).
-        ranked = ([f for f in matched if f.get("relevance") == "direct"]
-                  + [f for f in matched if f.get("relevance") == "contributing"])
+        ranked = sorted(
+            [
+                f for f in matched
+                if f.get("relevance") in ("direct", "contributing")
+                and not _is_chronic_hygiene(f.get("message", ""))
+            ],
+            key=lambda f: (0 if f.get("relevance") == "direct" else 1, f.get("priority_rank", 999)),
+        )
         if not ranked:
             return {
                 "detected": False,
@@ -769,6 +1090,7 @@ def analyze_what_changed(matched: list[dict], alert: dict, sentinel: dict) -> di
 
 def build_output(alert: dict, sentinel: dict, matched: list[dict], alert_type: str) -> dict:
     chain = build_causation_chain(matched, alert)
+    parallel = collect_parallel_findings(matched, chain)
     fix = build_fix_plan(matched, alert)
     confidence, confidence_reason = score_confidence(matched, alert)
     blast = assess_blast_radius(matched, alert)
@@ -818,6 +1140,7 @@ def build_output(alert: dict, sentinel: dict, matched: list[dict], alert_type: s
         },
         "what_changed": what_changed,
         "causation_chain": chain,
+        "parallel_findings": parallel,
         "fix_plan": fix,
         "blast_radius": blast,
         "confidence": confidence,
@@ -893,6 +1216,25 @@ def render_html(data: dict) -> str:
         )
     if not finding_rows:
         finding_rows = '<tr><td colspan="5" class="ok">No matched findings</td></tr>\n'
+
+    parallel_rows = ""
+    for pf in data.get("parallel_findings", []):
+        sc = sev_class(pf.get("severity", ""))
+        parallel_rows += (
+            f'<tr class="{sc}">'
+            f'<td>{e(pf.get("section"))}</td>'
+            f'<td class="sev">{e(pf.get("severity"))}</td>'
+            f'<td>{e(pf.get("message"))}</td>'
+            f'<td>{e(pf.get("relevance_reason"))}</td>'
+            f'</tr>\n'
+        )
+    parallel_html = ""
+    if parallel_rows:
+        parallel_html = (
+            f'<h2>Parallel Findings (separate failure paths)</h2>\n'
+            f'<table>\n<tr><th>Section</th><th>Severity</th><th>Message</th><th>Reason</th></tr>\n'
+            f'{parallel_rows}</table>\n'
+        )
 
     # Build causation chain rows
     chain_rows = ""
@@ -1017,6 +1359,7 @@ def render_html(data: dict) -> str:
 {finding_rows}
 </table>
 
+{parallel_html}
 {what_changed_html}
 <h2>Causation Chain</h2>
 <table>
@@ -1112,9 +1455,11 @@ def main() -> int:
         print(json.dumps(partial, indent=2, ensure_ascii=False))
         return 2
 
-    # Both provided — full triage
+    # Both provided — full triage. Load the keyword map (built-ins + any user config)
+    # so classification adapts to the org's alert vocabulary.
     alert_type = classify_alert_type(
-        (alert.get("alert_name") or "") + " " + (alert.get("raw_body") or "")
+        (alert.get("alert_name") or "") + " " + (alert.get("raw_body") or ""),
+        load_alert_type_keywords(),
     )
 
     # Namespace fallback

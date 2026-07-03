@@ -1,0 +1,8 @@
+{
+  "alert_source": "freetext",
+  "alert_name": "[P4][P4D] - ERROR - Container restart above 3 in 30mins",
+  "service": null,
+  "namespace": "p4d-fdplan",
+  "severity": "warning",
+  "raw_body": "[P4][P4D] - ERROR - Container restart above 3 in 30mins"
+}

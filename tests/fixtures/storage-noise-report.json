@@ -1,0 +1,81 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-07-03T03:06:46Z",
+  "context": "gke_evd-fdp-eu-services_europe-west1-d_evd-sre",
+  "scope": "namespace: cybertron",
+  "exit_code": 2,
+  "summary": {
+    "critical": 5,
+    "warn": 6,
+    "ok": 9
+  },
+  "sections": [
+    {
+      "section": "PODS",
+      "findings": [
+        {
+          "severity": "CRITICAL",
+          "message": "Pod cybertron/mongodb-0: Pending — unbound PersistentVolumeClaims [datadir-mongodb-0]",
+          "recommendation": "kubectl describe pod mongodb-0 -n cybertron",
+          "last_event": null
+        },
+        {
+          "severity": "WARN",
+          "message": "129 pod(s) in non-system namespaces have containers with no memory limit — unbounded allocation can OOMKill the node kubelet",
+          "recommendation": "add resources.limits.memory to workload specs",
+          "last_event": null
+        },
+        {
+          "severity": "WARN",
+          "message": "129 pod(s) in non-system namespaces have containers with no CPU request — the scheduler can overcommit the node",
+          "recommendation": "set resources.requests.cpu on workload specs",
+          "last_event": null
+        }
+      ]
+    },
+    {
+      "section": "HTTP",
+      "findings": [
+        {
+          "severity": "CRITICAL",
+          "message": "HTTP Service cybertron/peep-v1:80 — no endpoints (no backing pods)",
+          "recommendation": "kubectl describe svc peep-v1 -n cybertron",
+          "last_event": null
+        }
+      ]
+    },
+    {
+      "section": "PVCS",
+      "findings": [
+        {
+          "severity": "CRITICAL",
+          "message": "PVC cybertron/datadir-mongodb-0: phase Pending",
+          "recommendation": "kubectl describe pvc datadir-mongodb-0 -n cybertron",
+          "last_event": null
+        }
+      ]
+    },
+    {
+      "section": "JOBS",
+      "findings": [
+        {
+          "severity": "CRITICAL",
+          "message": "Job cybertron/bumblebee-permissions-post-register-permissions-29640420: Failed (DeadlineExceeded) — 1 failed pod(s)",
+          "recommendation": "kubectl describe job bumblebee-permissions-post-register-permissions-29640420 -n cybertron",
+          "last_event": null
+        }
+      ]
+    },
+    {
+      "section": "RESOURCES",
+      "findings": [
+        {
+          "severity": "WARN",
+          "message": "Node gke-evd-sre-node-pool-17bb99bd-4mru: Memory at 87%",
+          "recommendation": "review pod memory limits",
+          "last_event": null
+        }
+      ]
+    }
+  ]
+}
