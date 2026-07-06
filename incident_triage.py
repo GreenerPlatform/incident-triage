@@ -28,7 +28,7 @@ import re
 import sys
 from datetime import datetime, timezone
 
-VERSION = "1.3.1"
+VERSION = "1.3.2"
 SCHEMA_VERSION = "1.2"
 
 # ── Alert type classification ─────────────────────────────────────────────────
@@ -320,8 +320,13 @@ def load_sentinel(path: str) -> dict | None:
     try:
         with open(path) as f:
             data = json.load(f)
-        if data.get("schema_version") != "1.0":
-            print(f"WARNING: sentinel JSON schema version '{data.get('schema_version')}' may differ from expected 1.0", file=sys.stderr)
+        # Known-good sentinel schemas. 1.1 (kubectl-sentinel ≥ 1.3.0) is additive over 1.0
+        # (adds a stable `id` per finding); triage reads it happily either way.
+        known_sentinel_schemas = {"1.0", "1.1"}
+        sv = data.get("schema_version")
+        if sv not in known_sentinel_schemas:
+            print(f"WARNING: sentinel JSON schema version '{sv}' is outside the known set "
+                  f"{sorted(known_sentinel_schemas)}; proceeding on a best-effort basis", file=sys.stderr)
         return data
     except (json.JSONDecodeError, OSError) as e:
         print(f"ERROR: cannot read sentinel JSON from '{path}': {e}", file=sys.stderr)

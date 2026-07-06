@@ -7,6 +7,15 @@ Versioning: [Semantic Versioning](https://semver.org/)
 
 ---
 
+## [1.3.2] — 2026-07-06
+
+### Changed
+- Accept **kubectl-sentinel JSON schema 1.1** without a warning. Schema 1.1 (sentinel ≥ 1.3.0)
+  is additive over 1.0 — it adds a stable `id` per finding — so triage reads it unchanged.
+  Only genuinely unknown schema versions now emit a best-effort notice.
+
+---
+
 ## [1.3.1] — 2026-07-03
 
 ### Fixed
