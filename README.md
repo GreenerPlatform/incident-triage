@@ -11,6 +11,8 @@
   <img src="https://img.shields.io/github/license/GreenerPlatform/incident-triage?style=flat-square" alt="license"/>
 </div>
 
+<p align="center"><em>The deterministic reasoning step for AI-assisted reliability — alert plus snapshot in, an auditable causation chain out, the same way every time.</em></p>
+
 ---
 
 ## Why Incident Triage Takes Too Long
