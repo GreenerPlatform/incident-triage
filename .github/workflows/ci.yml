@@ -39,3 +39,6 @@ jobs:
 
       - name: Unit tests — correlation engine
         run: python3 -m unittest tests.test_correlation -v
+
+      - name: Proof program W1 gate
+        run: bash scripts/w1_proof_gate.sh
