@@ -38,10 +38,17 @@ python3 incident_triage.py \
 Expected: exit code `0` and valid JSON. This proves process execution and parsing only; it
 does not prove causal correctness or command safety.
 
-Run the complete suite:
+Run the offline proof gates (same as CI):
 
 ```bash
-python -m unittest discover -s tests -v
+bash scripts/w1_proof_gate.sh
+bash scripts/w5_proof_gate.sh
+```
+
+Or run the full unit suite:
+
+```bash
+python3 -m unittest discover -s tests -v
 ```
 
 Add negative fixtures for false matches, degraded evidence, unsafe recommendations, and

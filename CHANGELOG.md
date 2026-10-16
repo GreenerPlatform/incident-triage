@@ -43,7 +43,7 @@ Versioning: [Semantic Versioning](https://semver.org/)
   promotion previously only ran when a primary root was found, silently dropping the only
   actionable CRITICALs on an honest-unmatched (e.g. resolved-incident) triage.
 
-### Changed — classifier robustness (so it works across users, not just one alert format)
+### Changed — classifier matching breadth (works across alert formats, not one vendor string)
 - **Stem-tolerant matching** — keywords match on word boundaries with suffix tolerance,
   so "restart" also covers "restarts"/"restarting"/"restarted". Word morphology no longer
   decides pass/fail. Numeric keywords ("500") match only as whole words (no "5000ms" mismatch).

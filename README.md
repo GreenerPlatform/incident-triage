@@ -91,7 +91,7 @@ incident-triage --sentinel-json report.json --alert alert.json
 # Free-text alert
 incident-triage --sentinel-json report.json --alert "payments API 503 since 14:30"
 
-# Snapshot mode (no cluster access needed)
+# Offline triage (sentinel JSON file only; no cluster access)
 incident-triage --sentinel-json snap.json --alert pd-alert.json
 
 # Override namespace when not determinable from alert
@@ -219,9 +219,10 @@ The tool is a plain CLI with JSON in/out, so any agent can drive it. Two paths:
 exposes `sentinel_snapshot` and `triage_incident` to compatible MCP hosts. Client
 configuration and operating-system support vary; follow that repository's tested setup.
 
-**2. Reference agent skill.** [`skills/SKILL.md`](skills/SKILL.md) is a reference reasoning-layer
-integration (Claude Code command + an optional PagerDuty enrichment phase). Copy it into your
-agent's command directory and adapt the alerting/notification provider to your stack:
+**2. Reference agent skill.** [`skills/SKILL.md`](skills/SKILL.md) is the core flow.
+Optional add-ons: [`skills/pagerduty-enrichment.md`](skills/pagerduty-enrichment.md),
+[`skills/triage-report-template.md`](skills/triage-report-template.md). Copy into your
+agent's command directory:
 
 ```bash
 cp skills/SKILL.md /path/to/your-project/.claude/commands/triage.md
