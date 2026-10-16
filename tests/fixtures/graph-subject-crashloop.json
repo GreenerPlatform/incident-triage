@@ -1,0 +1,29 @@
+{
+  "schema_version": "1.2",
+  "generated_at": "2026-10-17T00:00:00Z",
+  "context": "kind-test",
+  "scope": "namespace: payments",
+  "exit_code": 2,
+  "summary": { "critical": 1, "warn": 0, "ok": 0 },
+  "sections": [
+    {
+      "section": "PODS",
+      "collection_status": "complete",
+      "findings": [
+        {
+          "id": "POD-CRASHLOOP",
+          "severity": "CRITICAL",
+          "message": "Pod payments/api-7d9f container app: CrashLoopBackOff (restarts: 12, last exit: 1)",
+          "recommendation": null,
+          "last_event": null,
+          "collection_status": "complete",
+          "subjects": [
+            { "kind": "Pod", "namespace": "payments", "name": "api-7d9f-abc12", "uid": "pod-uid-1" },
+            { "kind": "ReplicaSet", "namespace": "payments", "name": "api-7d9f", "uid": "rs-uid-1", "relation": "ownerReference" },
+            { "kind": "Deployment", "namespace": "payments", "name": "api", "uid": "dep-uid-1", "relation": "ownerReference" }
+          ]
+        }
+      ]
+    }
+  ]
+}

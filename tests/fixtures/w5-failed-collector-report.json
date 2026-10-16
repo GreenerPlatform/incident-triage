@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.2",
+  "sections": [
+    {
+      "section": "HTTP",
+      "collection_status": "failed",
+      "findings": [
+        {
+          "id": "HTTP-COLLECT-FAILED",
+          "severity": "WARN",
+          "message": "Could not retrieve services",
+          "collection_status": "failed"
+        }
+      ]
+    }
+  ]
+}

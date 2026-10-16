@@ -400,6 +400,42 @@ def _resources_overlap(a: set[str], b: set[str]) -> bool:
     return False
 
 
+def _subject_tokens(subjects: list | None) -> set[str]:
+    if not subjects:
+        return set()
+    tokens: set[str] = set()
+    for subj in subjects:
+        if not isinstance(subj, dict):
+            continue
+        name = (subj.get("name") or "").lower()
+        ns = (subj.get("namespace") or "").lower()
+        kind = (subj.get("kind") or "").lower()
+        if name:
+            tokens.add(name)
+            tokens |= _expand_volume_tokens(name)
+        if ns and name:
+            tokens.add(f"{ns}/{name}")
+        if kind and name:
+            tokens.add(f"{kind}/{name}")
+    return tokens
+
+
+def _references_alert_via_subjects(subjects: list | None, alert: dict) -> bool:
+    tokens = _subject_tokens(subjects)
+    if not tokens:
+        return False
+    service = (alert.get("service") or "").lower()
+    emitting = (alert.get("emitting_service") or "").lower()
+    namespace = (alert.get("namespace") or "").lower()
+    if service and any(service == t or t.endswith(f"/{service}") or service in t for t in tokens):
+        return True
+    if emitting and any(emitting in t for t in tokens):
+        return True
+    if namespace and any(t.startswith(f"{namespace}/") for t in tokens):
+        return True
+    return False
+
+
 def _in_causal_scope(msg_lower: str, emitting_service: str, dependencies: list[str],
                      namespace: str) -> bool:
     """
@@ -432,6 +468,11 @@ def _is_causally_linked(root: dict, candidate: dict, alert: dict) -> bool:
     root_tokens = extract_resource_tokens(root.get("message", ""))
     cand_tokens = extract_resource_tokens(candidate.get("message", ""))
     if _resources_overlap(root_tokens, cand_tokens):
+        return True
+    if _resources_overlap(
+        _subject_tokens(root.get("subjects")),
+        _subject_tokens(candidate.get("subjects")),
+    ):
         return True
 
     service = (alert.get("service") or "").lower()
@@ -497,6 +538,7 @@ def score_findings(sentinel: dict, alert: dict, alert_type: str) -> list[dict]:
             msg = finding.get("message") or ""
             msg_lower = msg.lower()
             rec = finding.get("recommendation")
+            subjects = finding.get("subjects")
 
             if _is_noisy(msg):
                 continue
@@ -518,7 +560,8 @@ def score_findings(sentinel: dict, alert: dict, alert_type: str) -> list[dict]:
             in_scope = _in_causal_scope(msg_lower, emitting_service, dependencies, namespace)
 
             references_alert = (
-                (service and service in msg_lower)
+                _references_alert_via_subjects(subjects, alert)
+                or (service and service in msg_lower)
                 or (emitting_service and emitting_service in msg_lower)
                 # Namespace-only overlap is weak evidence ("same namespace" ≠ "caused
                 # it"). Let it seed a root cause only when the alert type is known.
@@ -554,6 +597,7 @@ def score_findings(sentinel: dict, alert: dict, alert_type: str) -> list[dict]:
                 "priority_rank": priority_rank,
                 "last_event": finding.get("last_event"),
                 "signals": extract_signals(finding),
+                "subjects": subjects,
             })
 
     directs = [f for f in raw if f["relevance"] == "direct"]
@@ -917,6 +961,19 @@ def assess_evidence_gaps(
             }
         )
     for sec in sentinel.get("sections") or []:
+        sec_status = sec.get("collection_status")
+        if sec_status in ("failed", "not_available", "partial"):
+            gaps.append(
+                {
+                    "code": "collector_degraded",
+                    "collection_status": sec_status,
+                    "check_id": sec.get("section"),
+                    "message": (
+                        f"Sentinel section {sec.get('section', 'unknown')} "
+                        f"collection_status={sec_status}"
+                    ),
+                }
+            )
         for finding in sec.get("findings") or []:
             cs = finding.get("collection_status")
             if cs in ("failed", "not_available", "partial"):
