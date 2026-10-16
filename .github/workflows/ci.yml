@@ -35,7 +35,7 @@ jobs:
             --alert tests/fixtures/sample-alert.json \
             --output-format html > /tmp/triage.html
           grep -q "Incident Triage" /tmp/triage.html
-          grep -q "Service restores to healthy state" /tmp/triage.html
+          grep -q "Pod phases, readiness, restarts, and placement are available for review" /tmp/triage.html
 
       - name: Unit tests — correlation engine
         run: python3 -m unittest tests.test_correlation -v
