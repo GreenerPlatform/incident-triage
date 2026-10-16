@@ -898,6 +898,53 @@ def score_confidence(matched: list[dict], alert: dict) -> tuple[str, str]:
     return "medium", "Direct CRITICAL finding matched but no event timestamp within 5 minutes of alert start"
 
 
+def assess_evidence_gaps(
+    sentinel: dict, alert: dict, alert_type: str, matched: list[dict]
+) -> list[dict]:
+    """W5 evidence-integrity: surface missing collectors and historical snapshot limits."""
+    gaps: list[dict] = []
+    directs = [f for f in matched if f.get("relevance") == "direct"]
+    if alert_type == "crash_loop" and not directs:
+        gaps.append(
+            {
+                "code": "historical_incident",
+                "collection_status": "not_available",
+                "message": (
+                    "Current snapshot has no matching restart evidence; a resolved or "
+                    "transient incident cannot be closed without historical events, logs, "
+                    "or metrics."
+                ),
+            }
+        )
+    for sec in sentinel.get("sections") or []:
+        for finding in sec.get("findings") or []:
+            cs = finding.get("collection_status")
+            if cs in ("failed", "not_available", "partial"):
+                gaps.append(
+                    {
+                        "code": "collector_degraded",
+                        "collection_status": cs,
+                        "check_id": finding.get("check_id") or finding.get("id"),
+                        "message": (
+                            f"Sentinel check {finding.get('id', 'unknown')} returned "
+                            f"collection_status={cs}"
+                        ),
+                    }
+                )
+    return gaps
+
+
+def apply_evidence_integrity(
+    confidence: str, confidence_reason: str, gaps: list[dict]
+) -> tuple[str, str]:
+    if not gaps:
+        return confidence, confidence_reason
+    reason = gaps[0]["message"]
+    if confidence_reason:
+        reason = f"{reason} ({confidence_reason})"
+    return "low", reason
+
+
 # ── Blast radius ──────────────────────────────────────────────────────────────
 
 def assess_blast_radius(matched: list[dict], alert: dict) -> str:
@@ -1097,7 +1144,11 @@ def build_output(alert: dict, sentinel: dict, matched: list[dict], alert_type: s
     chain = build_causation_chain(matched, alert)
     parallel = collect_parallel_findings(matched, chain)
     fix = build_fix_plan(matched, alert)
+    evidence_gaps = assess_evidence_gaps(sentinel, alert, alert_type, matched)
     confidence, confidence_reason = score_confidence(matched, alert)
+    confidence, confidence_reason = apply_evidence_integrity(
+        confidence, confidence_reason, evidence_gaps
+    )
     blast = assess_blast_radius(matched, alert)
     what_changed = analyze_what_changed(matched, alert, sentinel)
 
@@ -1150,6 +1201,7 @@ def build_output(alert: dict, sentinel: dict, matched: list[dict], alert_type: s
         "blast_radius": blast,
         "confidence": confidence,
         "confidence_reason": confidence_reason,
+        "evidence_gaps": evidence_gaps,
     }
 
 

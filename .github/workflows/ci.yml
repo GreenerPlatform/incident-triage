@@ -42,3 +42,6 @@ jobs:
 
       - name: Proof program W1 gate
         run: bash scripts/w1_proof_gate.sh
+
+      - name: Proof program W5 gate (evidence integrity)
+        run: bash scripts/w5_proof_gate.sh
