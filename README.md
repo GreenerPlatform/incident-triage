@@ -11,23 +11,22 @@
   <img src="https://img.shields.io/github/license/GreenerPlatform/incident-triage?style=flat-square" alt="license"/>
 </div>
 
-<p align="center"><em>The deterministic reasoning step for AI-assisted reliability — alert plus snapshot in, an auditable causation chain out, the same way every time.</em></p>
+<p align="center"><em>A rule-based correlation layer for incident triage: alert plus snapshot in, ranked evidence and an auditable hypothesis out.</em></p>
 
 ---
 
-## Why Incident Triage Takes Too Long
+## What it does
 
-When your on-call alert fires — PagerDuty, Alertmanager, Opsgenie, Grafana, or a
-plain webhook — you get the symptom, not the cause. You open the dashboard, then
-kubectl, then chat history, then runbooks. By the time you have a picture, 20
-minutes are gone.
+incident-triage ranks findings from a kubectl-sentinel report against a normalized alert.
+It emits candidate causes, parallel findings, evidence gaps, event timing, confidence, and
+response steps for operator review.
 
-> **Alert in. Causation chain out. Fix command, ready to run.**
+> **Alert in. Ranked evidence and an incident hypothesis out.**
 
 ```bash
-incident-triage \
-  --sentinel-json snap.json \
-  --alert "payments API 503 since 14:30"
+python3 incident_triage.py \
+  --sentinel-json tests/fixtures/sample-report.json \
+  --alert tests/fixtures/sample-alert.json
 ```
 
 ```json
@@ -35,7 +34,7 @@ incident-triage \
   "confidence": "high",
   "what_changed": {
     "detected": true,
-    "summary": "Likely trigger: deploy/rollout change — a new build is crashing on startup; first seen 2 min before the alert (Pod payments/api-gateway).",
+    "summary": "Candidate event signal near the alert start; temporal correlation only.",
     "trigger": { "change_type": "deploy/rollout change", "reason": "BackOff", "seconds_before_alert": 135 }
   },
   "causation_chain": [
@@ -46,35 +45,40 @@ incident-triage \
   ],
   "fix_plan": {
     "p1": {
-      "action": "Restart the crashing deployment",
-      "command": "kubectl rollout restart deploy/api-gateway -n payments"
+      "action": "Inspect the previous container instance",
+      "command": "kubectl logs api-gateway -n payments --previous"
     },
     "p2": {
-      "action": "Watch pods return to Running state",
-      "command": "kubectl get pods -n payments -w"
+      "action": "Capture current workload state",
+      "command": "kubectl get pods -n payments -o wide"
     },
     "p3": { "action": "Investigate why CrashLoopBackOff is recurring" }
-  }
+  },
+  "evidence_gaps": []
 }
 ```
+
+The output above is abridged. Field names such as `root_cause` and
+`causation_chain` are retained for compatibility; they describe hypotheses unless
+independent evidence verifies causation. See [schema.md](schema.md) for the contract.
 
 ---
 
 ## Install
 
 ```bash
-# pipx (recommended — isolated, on your PATH)
-pipx install incident-triage
-
-# or pip
-pip install incident-triage
-
-# or from source, no packaging
+# Source install
 git clone https://github.com/GreenerPlatform/incident-triage
-cd incident-triage && bash install.sh /usr/local/bin
+cd incident-triage
+mkdir -p "$HOME/.local/bin"
+bash install.sh "$HOME/.local/bin"
+export PATH="$HOME/.local/bin:$PATH"
 ```
 
 **Requirements:** Python 3.10+ · standard library only · zero runtime dependencies
+
+The package metadata and release workflow are present, but `incident-triage` is not
+currently published on PyPI. The source install above is the supported public path.
 
 ---
 
@@ -127,26 +131,33 @@ Free text is also accepted — service name, namespace, and timestamps are extra
 
 | Code | When |
 |------|------|
-| `0` | Triage complete — valid output |
-| `1` | Namespace unknown |
-| `2` | Sentinel snapshot missing or invalid |
-| `3` | No sentinel findings match the alert — low-confidence output produced |
+| `0` | Full triage completed with a direct match; namespace may still be unknown |
+| `1` | Invoked without both required inputs |
+| `2` | One input is missing, the snapshot is unreadable/invalid, or argument parsing failed |
+| `3` | Full triage completed without a direct finding |
 
 ## How it works
 
-1. **Classify** — alert text is matched to one of 12 alert types (SLO burn, CrashLoop, OOMKill, etc.)
+1. **Classify** — alert text is matched to a built-in alert vocabulary
 2. **Prioritise** — sentinel sections are ranked by relevance to the alert type
 3. **Score** — each finding is classified as `direct`, `contributing`, `parallel`, or `background`. Chronic hygiene (missing limits/probes, node memory %) is always background.
-4. **Chain** — the primary direct finding (earliest priority section) is the root cause; only downstream findings with shared resource lineage become intermediate steps. Unrelated CRITICALs go to `parallel_findings`.
-5. **What changed** — event timestamps are correlated against the alert start time to surface the *likely trigger* ("a new build started crashing 2 min before the alert") and classify the change type — config, image, rollout, resource, scheduling, quota, or probe/health
-6. **Plan** — the fix command comes from the sentinel `recommendation` field (a complete kubectl command)
+4. **Rank** — the highest-ranked candidate uses alert type, scope, resource tokens,
+   subjects, and section priority. These rules establish correlation, not causation.
+   Findings outside the primary path appear as `parallel_findings`.
+5. **Event timing** — timestamped snapshot signals are ranked relative to the alert start.
+   This does not verify that a change occurred or caused the alert.
+6. **Plan** — the sentinel `recommendation` is preserved as a candidate next step
 
-No LLM calls. No network access. Deterministic output for the same inputs — including `what_changed`, which is pure temporal correlation over the snapshot.
+The Python correlator makes no network calls and never executes emitted commands.
+Generated timestamps, event ages, and local classifier extensions mean complete reports
+are not byte-for-byte deterministic. Reproduction requires the same snapshot, alert,
+configuration, CLI version, and evaluation time.
 
 Classification is **stem-tolerant and scored**, not literal first-match: "restart" also matches
 "restarts"/"restarting", numeric codes match as whole words, and the best-scoring type wins. If a
-type can't be determined, triage degrades to an honest "root cause unclear" rather than guessing —
-it never pins a root cause on a namespace-only coincidence.
+type cannot be determined, message-only namespace matches are suppressed. Current subject
+matching is token-based; treat every `direct` result as a candidate correlation until
+resource identity is verified.
 
 ### Extending alert classification (no code change)
 
@@ -172,8 +183,9 @@ python3 incident_triage.py \
   | python3 -m json.tool
 ```
 
-`tests/fixtures/` contains a minimal sentinel snapshot (CRITICAL: CrashLoopBackOff in namespace
-payments) and a matching alert descriptor.
+`tests/fixtures/` contains a minimal sentinel snapshot and normalized alert descriptor.
+The smoke test proves process execution and JSON parsing; it does not prove causal
+correctness or command safety.
 
 ## Output schema
 
@@ -185,7 +197,7 @@ See [schema.md](schema.md) for the full triage output JSON schema.
 [kubectl-sentinel](https://github.com/GreenerPlatform/kubectl-sentinel):
 
 ```bash
-# Install kubectl-sentinel (requires kubectl + jq)
+# Install kubectl-sentinel from source (requires Bash, kubectl, and jq)
 git clone https://github.com/GreenerPlatform/kubectl-sentinel
 cd kubectl-sentinel && bash install.sh ~/bin && cd -
 
@@ -194,16 +206,18 @@ kubectl sentinel --json -n payments > snap.json
 incident-triage --sentinel-json snap.json --alert "payments API 503 since 14:30"
 ```
 
-kubectl-sentinel runs 15 health dimensions and emits structured JSON.
-Its `recommendation` field is used directly as the fix command in the triage output.
+kubectl-sentinel runs 15 health dimensions and emits structured JSON. Its
+`recommendation` field is copied into the triage output; incident-triage does not verify
+that the value is safe, corrective, read-only, or syntactically valid.
 
 ## Using it from an AI agent (any runtime)
 
 The tool is a plain CLI with JSON in/out, so any agent can drive it. Two paths:
 
-**1. MCP server (recommended, vendor-neutral).** The [GreenerPlatform MCP server](https://github.com/GreenerPlatform)
-exposes `sentinel` and `triage` as tools to any MCP-capable client — Cursor, Claude Desktop,
-VS Code, Windsurf, or a custom agent. Install once; it works everywhere.
+**1. MCP server.** The
+[GreenerPlatform MCP server](https://github.com/GreenerPlatform/greenerplatform-mcp)
+exposes `sentinel_snapshot` and `triage_incident` to compatible MCP hosts. Client
+configuration and operating-system support vary; follow that repository's tested setup.
 
 **2. Reference agent skill.** [`skills/SKILL.md`](skills/SKILL.md) is a reference reasoning-layer
 integration (Claude Code command + an optional PagerDuty enrichment phase). Copy it into your
@@ -220,10 +234,19 @@ cp skills/SKILL.md /path/to/your-project/.claude/commands/triage.md
 
 ## The dual-layer pattern
 
-incident-triage is the deterministic layer: alert → cluster state → causation chain in a
-single pass. An agent (via MCP or the reference skill) is the reasoning layer: it runs sentinel,
-feeds the output to this tool, then adds context from your incident history and playbooks.
-The agent is bounded by the evidence — it reasons over facts the CLI established, not guesses.
+incident-triage is the rule-based correlation layer: alert plus report becomes ranked
+evidence and an incident hypothesis. An agent can add approved incident history,
+metrics, logs, traces, and playbooks. The schema exposes evidence and gaps; it cannot
+guarantee that a host model uses them correctly.
+
+## Safety and data handling
+
+Treat the input report and output as sensitive operational data. They may contain cluster,
+workload, image, Secret, event, and alert details. Redact credentials, tokens, customer
+data, internal hostnames, and identifying metadata before sharing.
+
+Review every command against workload ownership, current evidence, expected impact, and
+rollback options. incident-triage never executes a command.
 
 ---
 

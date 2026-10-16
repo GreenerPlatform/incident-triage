@@ -2,19 +2,19 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2026 Olawale Ogundiran
 """
-incident-triage — deterministic incident triage CLI tool.
+incident-triage — rule-based incident correlation CLI.
 
 Accepts a sentinel JSON snapshot and an alert descriptor (JSON file or free text),
-correlates the alert symptom to sentinel findings, builds a causation chain, and
-emits a triage JSON report to stdout.
+correlates the alert symptom to sentinel findings, builds a compatibility causation-chain
+hypothesis, and emits a triage JSON report to stdout.
 
 No LLM calls. No external dependencies. stdlib only.
 
 Exit codes:
-  0 — triage complete, valid output
-  1 — namespace unknown; the caller (agent/skill/human) must supply --namespace
-  2 — sentinel snapshot missing or invalid; the caller must collect cluster state
-  3 — no sentinel findings match the alert; low-confidence output produced
+  0 — full triage completed with a direct match
+  1 — invoked without both required inputs
+  2 — one input missing, snapshot invalid/unreadable, or argument usage error
+  3 — full triage completed without a direct finding
 
 Usage:
   incident-triage [--sentinel-json <file>] [--alert <text or json file>]
@@ -320,9 +320,9 @@ def load_sentinel(path: str) -> dict | None:
     try:
         with open(path) as f:
             data = json.load(f)
-        # Known-good sentinel schemas. 1.1 (kubectl-sentinel ≥ 1.3.0) is additive over 1.0
-        # (adds a stable `id` per finding); triage reads it happily either way.
-        known_sentinel_schemas = {"1.0", "1.1"}
+        # Known-good sentinel schemas. Later versions add stable IDs, collection
+        # status, provenance, and subjects without removing the fields used here.
+        known_sentinel_schemas = {"1.0", "1.1", "1.2"}
         sv = data.get("schema_version")
         if sv not in known_sentinel_schemas:
             print(f"WARNING: sentinel JSON schema version '{sv}' is outside the known set "
@@ -426,12 +426,9 @@ def _references_alert_via_subjects(subjects: list | None, alert: dict) -> bool:
         return False
     service = (alert.get("service") or "").lower()
     emitting = (alert.get("emitting_service") or "").lower()
-    namespace = (alert.get("namespace") or "").lower()
     if service and any(service == t or t.endswith(f"/{service}") or service in t for t in tokens):
         return True
     if emitting and any(emitting in t for t in tokens):
-        return True
-    if namespace and any(t.startswith(f"{namespace}/") for t in tokens):
         return True
     return False
 
@@ -563,12 +560,9 @@ def score_findings(sentinel: dict, alert: dict, alert_type: str) -> list[dict]:
                 _references_alert_via_subjects(subjects, alert)
                 or (service and service in msg_lower)
                 or (emitting_service and emitting_service in msg_lower)
-                # Namespace-only overlap is weak evidence ("same namespace" ≠ "caused
-                # it"). Let it seed a root cause only when the alert type is known.
-                # For 'unknown' alerts, require a service/emitting match so a
-                # classification miss degrades to honest "root cause unclear" instead
-                # of a namespace-coincidence false positive — a second safety net
-                # independent of the keyword fix.
+                # Namespace-only overlap is weak evidence ("same namespace" does not
+                # establish a resource relationship). For a known alert type it can
+                # seed a candidate; unknown alerts require a service identity match.
                 or (namespace and namespace in msg_lower and alert_type != "unknown")
             )
             is_direct = sev == "CRITICAL" and in_priority and in_scope and references_alert
@@ -609,17 +603,17 @@ def score_findings(sentinel: dict, alert: dict, alert_type: str) -> list[dict]:
                 continue
             if f["message"] == primary["message"]:
                 f["relevance_reason"] = (
-                    f"Primary root cause — CRITICAL in {f['section']} matched alert scope"
+                    f"Primary candidate — CRITICAL in {f['section']} matched alert scope"
                 )
             elif _is_causally_linked(primary, f, alert):
                 f["relevance"] = "contributing"
                 f["relevance_reason"] = (
-                    f"Downstream of primary root ({primary['section']}) — shared resource lineage"
+                    f"Related to primary candidate ({primary['section']}) — shared resource lineage"
                 )
             else:
                 f["relevance"] = "parallel"
                 f["relevance_reason"] = (
-                    "CRITICAL finding matched alert scope but is not the primary root cause "
+                    "CRITICAL finding matched alert scope but is not the primary candidate "
                     "— investigate separately"
                 )
 
@@ -839,24 +833,24 @@ def build_fix_plan(matched: list[dict], alert: dict) -> dict:
             namespace = found_ns
     namespace = namespace or "<UNKNOWN>"
 
-    # ── P1: stop the bleeding ─────────────────────────────────────────────────
-    p1_action = "Investigate and resolve the root cause"
+    # ── P1: review the highest-ranked candidate ───────────────────────────────
+    p1_action = "Investigate the highest-ranked candidate"
     p1_command = None
-    p1_outcome = "Service restores to healthy state"
+    p1_outcome = "Command output provides evidence for the next operator decision"
 
     if all_relevant:
         top = all_relevant[0]
         msg = top["message"]
 
         if top["recommendation"]:
-            # Primary: use the sentinel recommendation directly — it is already a
-            # complete, correct kubectl command. No template-filling needed.
+            # Preserve the sentinel recommendation without asserting that it is safe,
+            # corrective, read-only, or syntactically valid.
             p1_command = top["recommendation"]
-            p1_action = f"Address {top['section']} CRITICAL finding"
+            p1_action = f"Review {top['section']} CRITICAL candidate"
         else:
             # Sentinel provided no recommendation. Do not guess a fix — the CLI
             # lacks kubectl describe output, log content, and memory trends needed
-            # to classify the root cause (e.g. OOM LIMIT TOO LOW vs POSSIBLE LEAK,
+            # to evaluate the candidate (e.g. OOM LIMIT TOO LOW vs POSSIBLE LEAK,
             # CrashLoop APP ERROR vs SIGTERM). Emit a describe command to gather
             # that evidence; the skill layer does the classification.
             res = extract_resource_from_message(msg, namespace)
@@ -864,32 +858,32 @@ def build_fix_plan(matched: list[dict], alert: dict) -> dict:
 
             if res["pod"]:
                 p1_command = f"kubectl describe pod/{res['pod']} -n {ns}"
-                p1_action = "Gather pod state — use describe output to classify root cause before applying a fix"
+                p1_action = "Gather pod state — evaluate the candidate before proposing remediation"
             elif res["deploy"]:
                 p1_command = f"kubectl describe deploy/{res['deploy']} -n {ns}"
-                p1_action = "Gather deployment state — use describe output to classify root cause before applying a fix"
+                p1_action = "Gather deployment state — evaluate the candidate before proposing remediation"
             else:
                 p1_command = f"kubectl describe pod -l app={alert.get('service', '<SERVICE>')} -n {ns}"
-                p1_action = "Gather pod state — use describe output to classify root cause before applying a fix"
+                p1_action = "Gather pod state — evaluate the candidate before proposing remediation"
 
-            p1_outcome = "Use describe output to classify root cause, then apply targeted fix"
+            p1_outcome = "Describe output provides evidence for the next operator decision"
 
-    # ── P2: confirm recovery ──────────────────────────────────────────────────
+    # ── P2: capture current workload state ────────────────────────────────────
     ns = namespace
-    service = alert.get("service") or "<SERVICE>"
-    p2_command = f"kubectl get pods -n {ns} -w"
-    p2_action = "Watch pods return to Running state"
-    p2_outcome = "All pods Running with 0 restarts; deployment at desired replicas"
+    p2_command = f"kubectl get pods -n {ns} -o wide"
+    p2_action = "Capture current workload state"
+    p2_outcome = "Pod phases, readiness, restarts, and placement are available for review"
 
-    # ── P3: prevent recurrence ────────────────────────────────────────────────
+    # ── P3: review related evidence and recurrence controls ──────────────────
     p3_command = None
-    p3_action = "Address root cause to prevent recurrence"
-    p3_outcome = "Issue does not repeat after next deployment"
+    p3_action = "Investigate recurrence controls"
+    p3_outcome = "Owner identifies and validates an appropriate prevention measure"
 
-    # Use recommendation from second finding as P3, or top finding's recommendation if used in P2
+    # Preserve a related recommendation as context; do not assert that it resolves
+    # the finding or prevents recurrence.
     if len(all_relevant) > 1 and all_relevant[1]["recommendation"]:
         p3_command = all_relevant[1]["recommendation"]
-        p3_action = f"Resolve {all_relevant[1]['section']} {all_relevant[1]['severity']} finding"
+        p3_action = f"Review related {all_relevant[1]['section']} evidence"
     elif all_relevant and all_relevant[0]["recommendation"]:
         # If we used recommendation for P1, P3 gets the same command as context
         # (P3 is "prevent" not "stop bleeding", so describe/inspect is appropriate)
@@ -1058,7 +1052,7 @@ def _classify_change(section: str, reason: str, message: str) -> str:
     if "oomkilled" in m or "oomkilling" in r or "out of memory" in m:
         return "resource change — OOMKilled (memory limit too low, or a new leak)"
     if "crashloop" in m or ("exit" in m and ("code" in m or re.search(r"exit\s+\d", m))):
-        return "deploy/rollout change — a new build is crashing on startup"
+        return "container restart signal — verify deployment history and previous logs"
     if "failedscheduling" in r or "unschedulable" in m or ("pending" in m and "schedul" in m):
         return "capacity/scheduling change — pods can't be scheduled (resources or constraints)"
     if "quota" in m or "exceeded quota" in m:
@@ -1074,15 +1068,13 @@ def _classify_change(section: str, reason: str, message: str) -> str:
 
 def analyze_what_changed(matched: list[dict], alert: dict, sentinel: dict) -> dict:
     """
-    Deterministic "what changed right before the alert".
+    Rank candidate event signals relative to the alert.
 
-    Uses only the snapshot's event timestamps vs the alert start time — no external
-    lookups, no model. Root causes precede symptoms, so the earliest change event in
-    the incident window is surfaced as the likely trigger. Fully reproducible for a
-    given (snapshot, alert) pair.
+    Uses only snapshot event timestamps and the alert start time. Timing establishes
+    correlation, not a verified change or cause. No external lookups or model calls.
     """
     method = ("temporal correlation of sentinel event timestamps vs alert start time "
-              "(deterministic; no external lookups)")
+              "(no external lookups; not causal proof)")
     alert_dt = _parse_ts(alert.get("start_time"))
 
     seen: set = set()
@@ -1155,14 +1147,14 @@ def analyze_what_changed(matched: list[dict], alert: dict, sentinel: dict) -> di
         res_hint = trig["message"].split(" — ")[0].split(":")[0].strip() or trig["section"]
         return {
             "detected": True,
-            "summary": (f"Likely trigger: {trig['change_type']} ({res_hint}). "
-                        "No event timestamps in the snapshot — inferred from the top correlated finding."),
+            "summary": (f"Candidate signal: {trig['change_type']} ({res_hint}). "
+                        "No event timestamps were available for temporal correlation."),
             "trigger": trig,
             "signals": [_infer(f) for f in ranked[:5]],
             "method": "inferred from the top correlated sentinel finding (no event timestamps available to correlate temporally)",
         }
 
-    # Earliest event first (root cause precedes symptom); deterministic tie-break.
+    # Earliest event first; timing is correlation, not causal proof.
     candidates.sort(key=lambda c: (c["_dt"], c["section"], c["message"]))
 
     # If the alert has a start time, prefer changes at/just before it (tolerate 60s clock skew).
@@ -1180,7 +1172,10 @@ def analyze_what_changed(matched: list[dict], alert: dict, sentinel: dict) -> di
         return f"{secs}s before the alert"
 
     res_hint = trigger["message"].split(" — ")[0].split(":")[0].strip() or trigger["section"]
-    summary = f"Likely trigger: {trigger['change_type']}; first seen {_fmt(trigger['seconds_before_alert'])} ({res_hint})."
+    summary = (
+        f"Candidate event signal: {trigger['change_type']}; observed "
+        f"{_fmt(trigger['seconds_before_alert'])} ({res_hint})."
+    )
 
     def _public(c: dict) -> dict:
         return {k: c[k] for k in
@@ -1220,6 +1215,7 @@ def build_output(alert: dict, sentinel: dict, matched: list[dict], alert_type: s
             "relevance": f["relevance"],
             "relevance_reason": f["relevance_reason"],
             "signals": f.get("signals", {}),
+            "subjects": f.get("subjects", []),
         }
         for f in matched
         if f["relevance"] != "background"
@@ -1498,7 +1494,7 @@ def render_html(data: dict) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="incident-triage — deterministic Kubernetes incident triage"
+        description="incident-triage — rule-based Kubernetes incident correlation"
     )
     parser.add_argument("--version", action="version", version=f"incident-triage {VERSION}")
     parser.add_argument("--sentinel-json", metavar="FILE",

@@ -18,10 +18,13 @@ python3 incident_triage.py \
 
 ## Design principles
 
-- **Classify before recommending** — the correct P1 action depends on the class of problem; OOMKill, CrashLoop, and missing secret all need different fixes
-- **Deterministic** — same inputs must always produce the same output; no randomness, no LLM calls, no network access
+- **Correlate before recommending** — rank the evidence, preserve uncertainty, and do not
+  present a candidate cause as verified causation
+- **Reproducible rules** — classifications should remain stable for a fixed snapshot,
+  alert, configuration, CLI version, and evaluation time
 - **Exit codes are a public API** — never change what an exit code means without bumping the major version
-- **Use the sentinel recommendation** — the `recommendation` field in sentinel findings is already a complete kubectl command; use it directly as P1 rather than reconstructing it
+- **Preserve the sentinel recommendation** — copy it without inventing a command, but treat
+  it as untrusted operational input that requires review
 - **stdlib only** — no pip dependencies; the tool must work on any machine with Python 3.10+
 
 ## Smoke test
@@ -32,13 +35,24 @@ python3 incident_triage.py \
   --alert tests/fixtures/sample-alert.json
 ```
 
-Expected: exit code `0`, JSON output with `confidence: "medium"` or higher, causation chain with at least 2 levels.
+Expected: exit code `0` and valid JSON. This proves process execution and parsing only; it
+does not prove causal correctness or command safety.
+
+Run the complete suite:
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+Add negative fixtures for false matches, degraded evidence, unsafe recommendations, and
+schema drift. Before release, verify that `VERSION`, `incident_triage.VERSION`, and
+`[project].version` agree and that the documented schema matches `SCHEMA_VERSION`.
 
 ## Making changes
 
 1. Fork the repo and create a branch: `git checkout -b fix/your-change`
 2. Make your change
-3. Run the smoke test to verify JSON output is valid
+3. Run the complete test suite and add a regression fixture
 4. Open a pull request with what you changed and why
 
 ## Adding a new alert type
@@ -55,9 +69,12 @@ Alert types are defined in `ALERT_TYPE_KEYWORDS` (top of the script). To add a n
 Include:
 - Python version (`python3 --version`)
 - The exact command you ran
-- The sentinel JSON file (or a minimal reproducer)
-- The alert text or file
-- The full output and exit code (`echo $?`)
+- A minimal sanitized sentinel fixture
+- A sanitized alert descriptor or free-text alert
+- The smallest output excerpt and exit code needed to show the problem
+
+Do not post credentials, tokens, customer data, internal hostnames, or identifying
+operational metadata.
 
 ## Documentation voice
 

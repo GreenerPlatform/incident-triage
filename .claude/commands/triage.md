@@ -1,11 +1,10 @@
 ---
 name: triage
 description: >
-  Incident triage — given an alert (PagerDuty, free text, or a sentinel JSON
-  snapshot), finds the root cause in the cluster, builds a causation chain, and
-  delivers a prioritised fix plan with concrete kubectl commands. Use when an alert
-  fires or a user reports a service is down. Invokes /sentinel internally; accepts
-  a pre-collected sentinel JSON snapshot.
+  Incident triage — given a normalized alert or free text plus a sentinel JSON
+  snapshot, ranks cluster evidence, records gaps, and proposes reviewable response
+  steps. Use when an alert fires or a user reports a service is down. Invokes
+  /sentinel internally; accepts a pre-collected sentinel JSON snapshot.
 compatibility: Requires kubectl and kubectl-sentinel. incident-triage (Python CLI)
   is optional — Phase 1b fallback works without it.
 allowed-tools: Bash(kubectl-sentinel:*) Bash(incident-triage:*) mcp__pagerduty-mcp__get_incident mcp__pagerduty-mcp__list_incidents mcp__pagerduty-mcp__list_alerts_from_incident mcp__pagerduty-mcp__list_incident_notes mcp__pagerduty-mcp__get_past_incidents mcp__pagerduty-mcp__get_related_incidents mcp__pagerduty-mcp__get_outlier_incident mcp__pagerduty-mcp__list_change_events mcp__kubernetes__kubectl_context mcp__kubernetes__ping mcp__kubernetes__kubectl_get mcp__kubernetes__kubectl_describe mcp__kubernetes__kubectl_logs mcp__kubernetes__kubectl_generic mcp__kubernetes__kubectl_rollout mcp__kubernetes__kubectl_scale
@@ -14,8 +13,8 @@ allowed-tools: Bash(kubectl-sentinel:*) Bash(incident-triage:*) mcp__pagerduty-m
 **Arguments:** $ARGUMENTS
 
 > **Reference integration.** This skill is one worked example of the reasoning layer:
-> Claude Code as the runtime, PagerDuty as the incident source. The deterministic core
-> (`kubectl-sentinel` + `incident-triage`) is vendor-neutral — swap the PagerDuty phases
+> Claude Code as the runtime, PagerDuty as the incident source. The rule-based core
+> (`kubectl-sentinel` + `incident-triage`) is vendor-neutral — adapt the PagerDuty phases
 > for Alertmanager/Opsgenie/Grafana, or drive the same CLIs from any agent via the
 > GreenerPlatform MCP server. Nothing below is required to use the tools.
 
@@ -164,8 +163,9 @@ incident-triage \
 
 Capture the JSON output. Note the exit code:
 - 0 → full triage, proceed to Phase 2
-- 1 → namespace unknown — ask the user (one question), rerun with `--namespace`
-- 2 → snapshot invalid — re-collect with kubectl-sentinel
+- 1 → both required inputs were omitted — supply `--sentinel-json` and `--alert`
+- 2 → one input is missing, the snapshot is unreadable/invalid, or usage failed — correct
+  the input and retry
 - 3 → no direct match — proceed to Phase 2 with confidence: low
 
 **Do not show the raw JSON to the user.** Render it using the Phase 2 format.
@@ -215,10 +215,10 @@ Section priority by alert type (highest relevance first):
 
 Apply your reasoning beyond these rules:
 - Look for correlated patterns (FailedMount + 0 replicas → missing secret)
-- Assess cross-namespace blast radius when root cause is node-level
+- Assess cross-namespace blast radius when the primary candidate is node-level
 - State confidence and reasoning explicitly
 
-Produce the same causation chain, fix plan, and confidence assessment as Phase 1a.
+Produce the same hypothesis chain, response steps, and confidence assessment as Phase 1a.
 
 ---
 
@@ -246,10 +246,10 @@ Confidence: HIGH | MEDIUM | LOW — <one-sentence reason>
 [all 10 sections; OK sections in one row; CRITICAL/WARN expanded]
 
 ── CAUSATION CHAIN ──
-  Root cause   → <root cause description>
+  Candidate    → <highest-ranked candidate description>
                  Evidence: <sentinel finding or event>
 
-  Via          → <how root cause propagates to the next effect>
+  Via          → <inferred relationship; label unverified links>
                  Mechanism : <synchronous HTTP | async queue | shared database | shared node resource>
                  ⚑ Confidence: CONFIRMED (seen in logs/traces) | INFERRED (architectural assumption)
                  Verify    : <kubectl command to confirm if INFERRED>
@@ -259,7 +259,7 @@ Confidence: HIGH | MEDIUM | LOW — <one-sentence reason>
   Alert        → <alert name and trigger>
   Blast radius : <what else is affected>
 
-── ROOT CAUSE CLASSIFICATION ──
+── CANDIDATE CAUSE CLASSIFICATION ──
   Finding type   : <OOMKill | CrashLoopBackOff | ImagePullBackOff | Pending |
                     FailedMount | HPA at max | Probe failure | Node NotReady | other>
   Classification : <derive from evidence signals below>
@@ -326,7 +326,7 @@ Classification lookup:
 
 ── EXECUTE ──
   P1: <action>
-  Command: <exact kubectl command from fix plan>
+  Command: <candidate command from response steps; review before execution>
   Run it now? [yes / no / show only]
 
 ── POST-INCIDENT ──
@@ -343,12 +343,17 @@ Classification lookup:
 ### Report rules
 
 - Never paste raw JSON or raw kubectl output verbatim
-- Causation chain must always have at least two levels — even when root cause is unknown: "Root cause unclear — see matched findings for hypotheses"
+- Treat `causation_chain` and `root_cause` as compatibility labels. Render them as an
+  incident hypothesis unless independent evidence verifies causation.
 - Fix plan commands must use resource names from the sentinel output — no invented names, no `<your-namespace>` placeholders (use the actual namespace from the alert or sentinel scope)
 - Confidence must be stated in the header — never omit
 - If unmatched_alert is true in the triage JSON, lead the causation chain with: "Alert symptom does not directly map to a sentinel finding — cluster state collected for context"
+- When confidence is `low`, root cause is `Unknown`, or exit code is 3, do not invent a
+  cause. Present parallel findings as separate hypotheses and state that a point-in-time
+  report may miss a resolved or intermittent condition.
 - Cross-service causation links not confirmed by logs or traces must be marked `⚑ INFERRED` with a concrete verification command
-- Root cause classification: always add the `── ROOT CAUSE CLASSIFICATION ──` block when sentinel surfaces a dominant finding. Classify before recommending any fix.
+- Candidate classification: add the `── CANDIDATE CAUSE CLASSIFICATION ──` block when
+  sentinel surfaces a dominant finding. Verify before recommending remediation.
 
 ### EXECUTE block — on user confirmation
 

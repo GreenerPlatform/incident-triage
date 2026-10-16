@@ -1,3 +1,2 @@
 # No external dependencies. stdlib only.
 # Requires Python 3.10+ (uses X | Y union type hints).
-# Compatible with Python 3.8+ if type hints are removed.

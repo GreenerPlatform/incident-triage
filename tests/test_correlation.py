@@ -233,6 +233,33 @@ class TestClassifierRobustness(unittest.TestCase):
         self.assertTrue(any(f["relevance"] == "parallel" for f in matched),
                         "the CRITICAL should still be surfaced as a parallel finding")
 
+    def test_unknown_alert_has_no_subject_namespace_only_root(self):
+        sentinel = {
+            "schema_version": "1.2",
+            "sections": [
+                {"section": "JOBS", "findings": [
+                    {
+                        "severity": "CRITICAL",
+                        "message": "Unrelated batch failure",
+                        "recommendation": None,
+                        "last_event": None,
+                        "subjects": [
+                            {"kind": "Job", "namespace": "team-x", "name": "nightly-export"}
+                        ],
+                    }
+                ]},
+            ],
+        }
+        alert = {"alert_name": "weird custom signal xyz", "namespace": "team-x",
+                 "service": None, "raw_body": "weird custom signal xyz"}
+        matched = it.score_findings(sentinel, alert, "unknown")
+        directs = [f for f in matched if f["relevance"] == "direct"]
+        self.assertEqual(
+            directs,
+            [],
+            "subject namespace overlap alone must not create a direct match",
+        )
+
 
 class TestCliSmoke(unittest.TestCase):
     def test_cli_sample_fixture_exit_zero(self):

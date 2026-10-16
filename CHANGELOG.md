@@ -7,6 +7,19 @@ Versioning: [Semantic Versioning](https://semver.org/)
 
 ---
 
+## [Unreleased]
+
+### Added
+- `evidence_gaps` for historical incidents and degraded sentinel collection.
+- Typed subject correlation for findings that include Kubernetes evidence subjects.
+
+### Changed
+- Public documentation now treats causal labels as hypotheses and recommendations as
+  candidate operator-reviewed steps.
+- Package and documentation versions are aligned at 1.3.2.
+
+---
+
 ## [1.3.2] — 2026-07-06
 
 ### Changed
@@ -78,7 +91,9 @@ Versioning: [Semantic Versioning](https://semver.org/)
 - Docs, schema, and exit-code messages are vendor-neutral (alert sources: PagerDuty / Alertmanager / Opsgenie / Grafana / webhook / freetext; reasoning layer via MCP or a reference skill).
 
 ### Added
-- **PyPI/pipx** packaging (`pyproject.toml` + `incident-triage` console entry point) and a Trusted-Publishing release workflow — `pipx install incident-triage`.
+- Draft **PyPI/pipx** packaging (`pyproject.toml` + `incident-triage` console entry
+  point) and a Trusted-Publishing release workflow. The project is not yet published on
+  PyPI.
 - **Homebrew** formula template under `packaging/homebrew/`.
 - `Documentation voice` standard in `CONTRIBUTING.md`.
 
@@ -89,7 +104,9 @@ _No behavioural change to the triage logic._
 ## [1.2.0] — 2026-07-03
 
 ### Added
-- **`what_changed` correlation** — a new top-level output section answering *"what changed right before the alert?"* Purely deterministic: it correlates sentinel event timestamps against the alert start time (root causes precede symptoms) and classifies the likely trigger by change type — config (Secret/ConfigMap), image/registry, deployment rollout (ProgressDeadlineExceeded), resource/OOM, scheduling/capacity, quota, or probe/health. No external lookups, no model; fully reproducible for a given (snapshot, alert) pair. Rendered in both JSON and HTML.
+- **`what_changed` correlation** — a new top-level output section that ranks timestamped
+  snapshot findings against alert start and classifies message patterns. The result is a
+  candidate event signal, not a verified change or cause. Rendered in JSON and HTML.
 - Triage now scores findings from the five new sentinel sections (**JOBS, PDBS, QUOTAS, DNS, CERTS**), wired into the per-alert-type section-priority map.
 
 ### Changed
