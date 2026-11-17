@@ -1,0 +1,166 @@
+{
+  "schema_version": "1.2",
+  "generated_at": "NORMALIZED",
+  "alert": {
+    "source": "pagerduty",
+    "name": "payments-api SLO breach — error rate 12%",
+    "service": "payments-api",
+    "namespace": "payments",
+    "emitting_service": null,
+    "dependencies": [],
+    "playbook_url": null,
+    "start_time": "2026-03-31T14:32:00Z",
+    "severity": "critical"
+  },
+  "sentinel_summary": {
+    "context": "prod-cluster",
+    "scope": "namespace: payments",
+    "critical": 2,
+    "warn": 1,
+    "ok": 7
+  },
+  "correlation": {
+    "alert_type": "high_error_rate",
+    "matched_findings": [
+      {
+        "section": "PODS",
+        "severity": "CRITICAL",
+        "message": "Pod payments/payments-api-abc-123 container payments-api: CrashLoopBackOff (restarts: 67, last exit: 1)",
+        "relevance": "direct",
+        "relevance_reason": "Primary candidate — CRITICAL in PODS matched alert scope",
+        "signals": {
+          "restart_count": 67,
+          "last_event_age_seconds": 19909912
+        },
+        "subjects": null
+      },
+      {
+        "section": "WORKLOADS",
+        "severity": "CRITICAL",
+        "message": "Deployment payments/payments-api: 0/3 replicas available",
+        "relevance": "contributing",
+        "relevance_reason": "Related to primary candidate (PODS) — shared resource lineage",
+        "signals": {
+          "replicas_ready": 0,
+          "replicas_desired": 3
+        },
+        "subjects": null
+      },
+      {
+        "section": "HTTP",
+        "severity": "CRITICAL",
+        "message": "Service payments/payments-api-svc port 8080: no endpoints — selector may not match pods",
+        "relevance": "contributing",
+        "relevance_reason": "Related to primary candidate (PODS) — shared resource lineage",
+        "signals": {},
+        "subjects": null
+      },
+      {
+        "section": "PODS",
+        "severity": "CRITICAL",
+        "message": "Pod payments/payments-worker-xyz-456 container payments-worker: CrashLoopBackOff (restarts: 54, last exit: 1)",
+        "relevance": "parallel",
+        "relevance_reason": "CRITICAL finding matched alert scope but is not the primary candidate — investigate separately",
+        "signals": {
+          "restart_count": 54,
+          "last_event_age_seconds": 19909827
+        },
+        "subjects": null
+      }
+    ],
+    "unmatched_alert": false
+  },
+  "what_changed": {
+    "detected": true,
+    "summary": "Candidate event signal: container restart signal — verify deployment history and previous logs; observed 2 min before the alert (Pod payments/payments-api-abc-123 container payments-api).",
+    "trigger": {
+      "section": "PODS",
+      "message": "Pod payments/payments-api-abc-123 container payments-api: CrashLoopBackOff (restarts: 67, last exit: 1)",
+      "reason": "BackOff",
+      "change_type": "container restart signal — verify deployment history and previous logs",
+      "event_time": "2026-03-31T14:29:45Z",
+      "seconds_before_alert": 135
+    },
+    "signals": [
+      {
+        "section": "PODS",
+        "message": "Pod payments/payments-api-abc-123 container payments-api: CrashLoopBackOff (restarts: 67, last exit: 1)",
+        "reason": "BackOff",
+        "change_type": "container restart signal — verify deployment history and previous logs",
+        "event_time": "2026-03-31T14:29:45Z",
+        "seconds_before_alert": 135
+      },
+      {
+        "section": "PODS",
+        "message": "Pod payments/payments-worker-xyz-456 container payments-worker: CrashLoopBackOff (restarts: 54, last exit: 1)",
+        "reason": "BackOff",
+        "change_type": "container restart signal — verify deployment history and previous logs",
+        "event_time": "2026-03-31T14:31:10Z",
+        "seconds_before_alert": 50
+      }
+    ],
+    "method": "temporal correlation of sentinel event timestamps vs alert start time (no external lookups; not causal proof)"
+  },
+  "causation_chain": [
+    {
+      "level": 1,
+      "label": "root_cause",
+      "description": "Pod payments/payments-api-abc-123 container payments-api: CrashLoopBackOff (restarts: 67, last exit: 1)",
+      "evidence": "Sentinel CRITICAL finding in PODS"
+    },
+    {
+      "level": 2,
+      "label": "intermediate",
+      "description": "Deployment payments/payments-api: 0/3 replicas available",
+      "evidence": "Downstream of root (PODS) — CRITICAL in WORKLOADS"
+    },
+    {
+      "level": 3,
+      "label": "intermediate",
+      "description": "Service payments/payments-api-svc port 8080: no endpoints — selector may not match pods",
+      "evidence": "Downstream of root (PODS) — CRITICAL in HTTP"
+    },
+    {
+      "level": 4,
+      "label": "symptom",
+      "description": "payments-api SLO breach — error rate 12%",
+      "evidence": "Alert source: pagerduty"
+    },
+    {
+      "level": 5,
+      "label": "alert",
+      "description": "Alert triggered: payments-api SLO breach — error rate 12%",
+      "evidence": "Start time: 2026-03-31T14:32:00Z"
+    }
+  ],
+  "parallel_findings": [
+    {
+      "section": "PODS",
+      "severity": "CRITICAL",
+      "message": "Pod payments/payments-worker-xyz-456 container payments-worker: CrashLoopBackOff (restarts: 54, last exit: 1)",
+      "recommendation": "kubectl logs payments-worker-xyz-456 -n payments -c payments-worker --previous",
+      "relevance_reason": "CRITICAL finding matched alert scope but is not the primary candidate — investigate separately"
+    }
+  ],
+  "fix_plan": {
+    "p1": {
+      "action": "Review PODS CRITICAL candidate",
+      "command": "kubectl logs payments-api-abc-123 -n payments -c payments-api --previous",
+      "expected_outcome": "Command output provides evidence for the next operator decision"
+    },
+    "p2": {
+      "action": "Capture current workload state",
+      "command": "kubectl get pods -n payments -o wide",
+      "expected_outcome": "Pod phases, readiness, restarts, and placement are available for review"
+    },
+    "p3": {
+      "action": "Review related WORKLOADS evidence",
+      "command": "kubectl describe deploy payments-api -n payments",
+      "expected_outcome": "Owner identifies and validates an appropriate prevention measure"
+    }
+  },
+  "blast_radius": "workloads tied to the primary root in namespace payments are degraded; HTTP traffic to affected services is failing; 1 additional CRITICAL finding(s) on separate failure paths",
+  "confidence": "high",
+  "confidence_reason": "Direct CRITICAL finding with event timestamp within 135s of alert start",
+  "evidence_gaps": []
+}
