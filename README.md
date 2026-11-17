@@ -187,6 +187,18 @@ python3 incident_triage.py \
 The smoke test proves process execution and JSON parsing; it does not prove causal
 correctness or command safety.
 
+## Offline evidence pack
+
+For a same-input, schema-stable check with no cluster access:
+
+```bash
+bash evidence/offline-pack/verify.sh
+```
+
+That script runs triage twice against checked-in snapshot and alert fixtures, then
+compares both runs to `evidence/offline-pack/expected-triage.json`. See
+[evidence/offline-pack/README.md](evidence/offline-pack/README.md).
+
 ## Output schema
 
 See [schema.md](schema.md) for the full triage output JSON schema.
